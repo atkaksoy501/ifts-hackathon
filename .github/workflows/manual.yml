@@ -1,0 +1,25 @@
+name: Manual Task
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_name:
+        description: "Short description of the task to run"
+        required: false
+        default: "placeholder"
+
+jobs:
+  manual-task:
+    name: Manual Task
+    runs-on:
+      - self-hosted
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Print task input
+        run: echo "Requested task: ${{ inputs.task_name }}"
+
+      - name: Placeholder
+        run: echo "Replace this with the real manual workflow logic."
