@@ -37,5 +37,11 @@ jobs:
             -Dsonar.projectName=${{ github.event.repository.name }}
             -Dsonar.sources=.
 
+      - name: Verify Semgrep is available
+        run: semgrep --version
+
+      - name: Run Semgrep analysis
+        run: semgrep scan --config auto --error --metrics=off .
+
       - name: Placeholder
         run: echo "Add build, test, and deploy steps here."
