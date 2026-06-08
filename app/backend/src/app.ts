@@ -17,7 +17,11 @@ import {
 import { IdentityService } from "./contexts/identity/identity.service.js";
 import { InMemoryUserRepository, MongoUserRepository, type UserRepository } from "./contexts/identity/user.repository.js";
 import { CatalogService, createDemoCatalogSeed } from "./contexts/ingestion/catalog.service.js";
-import { FetchGitHubStateClient, type GitHubStateClient } from "./contexts/ingestion/github-state.client.js";
+import {
+  FetchGitHubStateClient,
+  GitHubContentsStateClient,
+  type GitHubStateClient
+} from "./contexts/ingestion/github-state.client.js";
 import { MongoCatalogRepositories } from "./contexts/ingestion/mongo.repositories.js";
 import { InMemoryCatalogRepositories, type CatalogRepositories } from "./contexts/ingestion/repositories.js";
 import { SyncScheduler } from "./contexts/ingestion/sync.scheduler.js";
@@ -66,7 +70,7 @@ export async function createApp(config: AppConfig = loadConfig(), options: Creat
   await catalogRepositories.ensureReady?.();
   const catalog = new CatalogService(
     catalogRepositories,
-    options.githubStateClient ?? new FetchGitHubStateClient(config.GITHUB_STATE_URL, config.GITHUB_STATE_TIMEOUT_MS),
+    options.githubStateClient ?? createGitHubStateClient(config),
     config.DEFAULT_PROJECT_KEY
   );
   const scheduler = new SyncScheduler(catalog, {
@@ -119,6 +123,20 @@ function createUserRepository(config: AppConfig): UserRepository {
   }
 
   return new MongoUserRepository(config.MONGO_URI, config.MONGO_DB_NAME);
+}
+
+function createGitHubStateClient(config: AppConfig): GitHubStateClient {
+  if (config.GITHUB_STATE_REPOSITORY) {
+    return new GitHubContentsStateClient(
+      config.GITHUB_STATE_REPOSITORY,
+      config.GITHUB_STATE_BRANCH,
+      config.GITHUB_STATE_PATH,
+      config.GITHUB_STATE_TIMEOUT_MS,
+      config.GITHUB_TOKEN
+    );
+  }
+
+  return new FetchGitHubStateClient(config.GITHUB_STATE_URL, config.GITHUB_STATE_TIMEOUT_MS, config.GITHUB_TOKEN);
 }
 
 function createBlockagePatternRepository(config: AppConfig): BlockagePatternRepository {
