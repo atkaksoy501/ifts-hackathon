@@ -15,6 +15,12 @@ on:
         description: "Optional JQL override"
         required: false
         default: ""
+  schedule:
+    - cron: "*/5 * * * *"
+
+concurrency:
+  group: jira-publish-state
+  cancel-in-progress: true
 
 jobs:
   publish-state:
@@ -35,9 +41,9 @@ jobs:
           JIRA_AUTH_MODE: ${{ secrets.JIRA_AUTH_MODE }}
           JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
           JIRA_USERNAME: ${{ secrets.JIRA_USERNAME }}
-          JIRA_PROJECT_KEY: ${{ inputs.project_key || secrets.JIRA_PROJECT_KEY }}
-          JIRA_LIVE_JQL: ${{ inputs.jql }}
-          JIRA_MAX_RESULTS: ${{ inputs.max_results }}
+          JIRA_PROJECT_KEY: ${{ inputs.project_key || vars.JIRA_PROJECT_KEY || secrets.JIRA_PROJECT_KEY }}
+          JIRA_LIVE_JQL: ${{ inputs.jql || vars.JIRA_LIVE_JQL }}
+          JIRA_MAX_RESULTS: ${{ inputs.max_results || vars.JIRA_MAX_RESULTS || '25' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_STATE_WRITER_TOKEN }}
           GITHUB_REPOSITORY: ${{ vars.GITHUB_STATE_REPOSITORY || 'atkaksoy501/hackathon-priv' }}
           GITHUB_BASE_BRANCH: main
@@ -49,10 +55,12 @@ jobs:
           $ErrorActionPreference = "Stop"
 
           if (-not $env:JIRA_TOKEN) {
-            throw "JIRA_TOKEN secret is not configured for this repository."
+            Write-Host "JIRA_TOKEN is not configured; skipping publish."
+            exit 0
           }
           if (-not $env:GITHUB_TOKEN) {
-            throw "GITHUB_STATE_WRITER_TOKEN secret is not configured for this repository."
+            Write-Host "GITHUB_STATE_WRITER_TOKEN is not configured; skipping publish."
+            exit 0
           }
           if (-not $env:JIRA_URL) {
             $env:JIRA_URL = "https://jira.turkcell.com.tr"
