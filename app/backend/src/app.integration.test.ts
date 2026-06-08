@@ -235,6 +235,28 @@ describe("api", () => {
     const backlog = await request(app).get("/api/backlog?projectKey=ICTFT").set("Cookie", cookie);
     expect(backlog.body.issues.map((issue: { key: string }) => issue.key)).toContain("ICTFT-201");
   });
+
+  it("seeds dummy Jira data when first sync fails and no catalog exists yet", async () => {
+    const app = await createApp(config, {
+      catalogRepositories: new InMemoryCatalogRepositories(),
+      githubStateClient: new MutableGitHubStateClient(githubStateFixture(), new Error("jira bridge offline"))
+    });
+    const cookie = await loginCookie(app);
+
+    const run = await request(app).post("/api/sync/github/run").set("Cookie", cookie).send({});
+    expect(run.status).toBe(200);
+    expect(run.body.status).toBe("warning");
+    expect(run.body.issueUpserts).toBeGreaterThan(0);
+    expect(run.body.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: "DUMMY_JIRA_FALLBACK" })]));
+
+    const backlog = await request(app).get("/api/backlog?projectKey=ICTFT").set("Cookie", cookie);
+    expect(backlog.status).toBe(200);
+    expect(backlog.body.issues.map((issue: { key: string }) => issue.key)).toContain("ICTFT-201");
+
+    const sprints = await request(app).get("/api/sprints/history?projectKey=ICTFT").set("Cookie", cookie);
+    expect(sprints.status).toBe(200);
+    expect(sprints.body.sprints.length).toBeGreaterThan(0);
+  });
 });
 
 async function loginCookie(app: Awaited<ReturnType<typeof createApp>>): Promise<string[]> {
@@ -258,7 +280,12 @@ function cookieText(value: string[] | string | undefined): string {
 class MutableGitHubStateClient implements GitHubStateClient {
   failWith: Error | undefined;
 
-  constructor(private readonly state: unknown) {}
+  constructor(
+    private readonly state: unknown,
+    failWith?: Error
+  ) {
+    this.failWith = failWith;
+  }
 
   async fetchState(): Promise<unknown> {
     if (this.failWith) throw this.failWith;

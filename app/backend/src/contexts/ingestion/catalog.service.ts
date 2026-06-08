@@ -168,6 +168,28 @@ export class CatalogService {
       await this.repositories.updateSyncRun(completedRun);
       return completedRun;
     } catch (error) {
+      if (!(await this.repositories.hasUsableData())) {
+        const fallbackSeed = createDemoCatalogSeed(this.defaultProjectKey);
+        const upserts = await this.repositories.upsertCatalog(fallbackSeed);
+        const fallbackRun: SyncRunDto = {
+          ...baseRun,
+          ...upserts,
+          status: "warning",
+          completedAt: this.now(),
+          warnings: [
+            ...baseRun.warnings,
+            {
+              code: "DUMMY_JIRA_FALLBACK",
+              message: `Live Jira state unavailable; demo Jira catalog seeded. Cause: ${error instanceof Error ? error.message : "Unknown sync failure"}`,
+              severity: "warning"
+            }
+          ],
+          error: error instanceof Error ? error.message : "Unknown sync failure"
+        };
+        await this.repositories.updateSyncRun(fallbackRun);
+        return fallbackRun;
+      }
+
       const failedRun: SyncRunDto = {
         ...baseRun,
         status: "failed",
