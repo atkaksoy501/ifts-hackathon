@@ -62,7 +62,7 @@ export function DeliveryDashboard() {
     return (
       <Shell status="Oturum gerekli">
         <LoginPanel
-          error={messageFromError(loginMutation.error ?? sessionQuery.error)}
+          error={loginMutation.error ? messageFromError(loginMutation.error) : undefined}
           isPending={loginMutation.isPending}
           onLogin={(input) => loginMutation.mutate(input)}
         />
@@ -293,8 +293,8 @@ function LoginPanel({
   isPending: boolean;
   onLogin: (input: { username: string; password: string }) => void;
 }) {
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin12345");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
   return (
     <Card className="w-full max-w-sm">
