@@ -1,7 +1,7 @@
 FROM node:22-alpine AS build
 
 WORKDIR /app
-RUN corepack enable
+RUN npm install -g pnpm@11.5.2
 COPY package.json pnpm-workspace.yaml ./
 COPY shared/package.json shared/package.json
 COPY backend/package.json backend/package.json

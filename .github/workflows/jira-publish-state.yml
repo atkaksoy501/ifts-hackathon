@@ -34,6 +34,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Publish Jira state to GitHub branch
         shell: pwsh
         env:
@@ -82,4 +87,5 @@ jobs:
             throw "Python is not available on this runner."
           }
 
+          & $python @pythonArgs --version
           & $python @pythonArgs integrations/jira/live_bridge/jira_to_github_state.py --once --max-results $env:JIRA_MAX_RESULTS
