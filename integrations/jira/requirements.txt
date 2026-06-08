@@ -1,0 +1,10 @@
+# Runtime SDK options for Jira integration work.
+# The smoke-test script in this folder intentionally uses Python stdlib only,
+# so this file is for application code or notebooks that need richer clients.
+jira>=3.8.0,<4
+requests>=2.32.0,<3
+python-dotenv>=1.0.1,<2
+
+# macOS system Python 3.9 is linked against LibreSSL on this runner.
+# urllib3 v2 emits NotOpenSSLWarning there; keep v1 for clean local smoke tests.
+urllib3>=1.26.20,<2

@@ -1,0 +1,79 @@
+name: Jira Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_results:
+        description: "Maximum Jira issues to fetch"
+        required: false
+        default: "3"
+      project_key:
+        description: "Optional Jira project key"
+        required: false
+        default: ""
+      jql:
+        description: "Optional JQL override"
+        required: false
+        default: ""
+
+jobs:
+  jira-smoke:
+    name: Jira REST smoke test
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show runner context
+        shell: pwsh
+        run: |
+          "Runner: $env:RUNNER_NAME"
+          "OS: $env:RUNNER_OS"
+          "Workspace: $env:GITHUB_WORKSPACE"
+
+      - name: Run Jira smoke test
+        shell: pwsh
+        env:
+          JIRA_URL: ${{ secrets.JIRA_URL }}
+          JIRA_AUTH_MODE: ${{ secrets.JIRA_AUTH_MODE }}
+          JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+          JIRA_USERNAME: ${{ secrets.JIRA_USERNAME }}
+          JIRA_CA_BUNDLE: ${{ secrets.JIRA_CA_BUNDLE }}
+          JIRA_PROJECT_KEY: ${{ inputs.project_key || secrets.JIRA_PROJECT_KEY }}
+          JIRA_SMOKE_JQL: ${{ inputs.jql }}
+          MAX_RESULTS: ${{ inputs.max_results }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          if (-not $env:JIRA_TOKEN) {
+            throw "JIRA_TOKEN secret is not configured for this repository."
+          }
+          if (-not $env:JIRA_URL) {
+            $env:JIRA_URL = "https://jira.turkcell.com.tr"
+          }
+          if (-not $env:JIRA_AUTH_MODE) {
+            $env:JIRA_AUTH_MODE = "bearer"
+          }
+          if (-not $env:MAX_RESULTS) {
+            $env:MAX_RESULTS = "3"
+          }
+
+          if (Get-Command py -ErrorAction SilentlyContinue) {
+            $python = "py"
+            $pythonArgs = @("-3")
+          } elseif (Get-Command python -ErrorAction SilentlyContinue) {
+            $python = "python"
+            $pythonArgs = @()
+          } elseif (Get-Command python3 -ErrorAction SilentlyContinue) {
+            $python = "python3"
+            $pythonArgs = @()
+          } else {
+            throw "Python is not available on this runner."
+          }
+
+          & $python @pythonArgs --version
+          & $python @pythonArgs integrations/jira/jira_smoke_test.py --max-results $env:MAX_RESULTS

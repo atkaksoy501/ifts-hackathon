@@ -13,6 +13,8 @@ jobs:
     name: Basic Check
     runs-on:
       - self-hosted
+      - macOS
+      - ARM64
 
     steps:
       - name: Check out repository
