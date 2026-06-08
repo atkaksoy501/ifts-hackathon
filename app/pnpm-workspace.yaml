@@ -1,0 +1,8 @@
+packages:
+  - "shared"
+  - "backend"
+  - "frontend"
+onlyBuiltDependencies:
+  - esbuild
+allowBuilds:
+  esbuild: true

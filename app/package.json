@@ -1,0 +1,35 @@
+{
+  "name": "predictive-sizing-blockage-advisor",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.5.2",
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n backend,frontend \"corepack pnpm --filter @module1/backend dev\" \"corepack pnpm --filter @module1/frontend dev\"",
+    "dev:backend": "corepack pnpm --filter @module1/backend dev",
+    "dev:frontend": "corepack pnpm --filter @module1/frontend dev",
+    "build": "corepack pnpm --filter @module1/contracts build && corepack pnpm --filter @module1/backend build && corepack pnpm --filter @module1/frontend build",
+    "test": "corepack pnpm -r test",
+    "test:unit": "corepack pnpm -r test:unit",
+    "test:integration": "corepack pnpm -r --if-present test:integration",
+    "test:e2e": "corepack pnpm --filter @module1/frontend test:e2e",
+    "coverage": "corepack pnpm -r coverage",
+    "lint": "corepack pnpm -r lint",
+    "quality": "corepack pnpm lint && corepack pnpm coverage",
+    "docker:build": "docker build -t module1-advisor .",
+    "docker:up": "docker compose up --build"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.8",
+    "concurrently": "^9.1.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

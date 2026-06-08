@@ -1,0 +1,30 @@
+import "dotenv/config";
+import { z } from "zod";
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  PORT: z.coerce.number().int().positive().default(8080),
+  FRONTEND_ORIGIN: z.string().default("http://localhost:5173"),
+  FRONTEND_DIST: z.string().default("../frontend/dist"),
+  MONGO_URI: z
+    .string()
+    .default(
+      "mongodb://hackathon:hackathon123@192.168.0.50:27017/hackathon?authSource=hackathon&authMechanism=SCRAM-SHA-256"
+    ),
+  MONGO_DB_NAME: z.string().default("hackathon"),
+  JWT_SECRET: z.string().min(8).default("dev-secret-change-me"),
+  JWT_COOKIE_NAME: z.string().default("module1_session"),
+  ADMIN_USERNAME: z.string().default("admin"),
+  ADMIN_PASSWORD: z.string().min(8).default("admin12345"),
+  ADMIN_DISPLAY_NAME: z.string().default("Admin"),
+  GITHUB_STATE_URL: z.string().url().default("https://raw.githubusercontent.com/example/jira-live/main/state.json"),
+  SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(300000),
+  HOURS_PER_STORY_POINT: z.coerce.number().positive().default(6),
+  DEFAULT_PROJECT_KEY: z.string().default("ICTFT")
+});
+
+export type AppConfig = z.infer<typeof envSchema>;
+
+export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
+  return envSchema.parse(source);
+}

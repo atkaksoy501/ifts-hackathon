@@ -4,6 +4,15 @@
 !.env.*.example
 
 .scannerwork/
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+coverage/
+**/coverage/
+.pnpm-store/
+test-results/
+**/test-results/
 __pycache__/
 *.py[cod]
 .venv/
