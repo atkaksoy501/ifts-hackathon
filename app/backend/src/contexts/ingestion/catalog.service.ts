@@ -139,6 +139,10 @@ export class CatalogService {
     return await this.repositories.findHistoricalIssues(projectKey);
   }
 
+  async listIssuesBySprint(projectKey: string, sprintId: string): Promise<JiraIssueDto[]> {
+    return await this.repositories.listIssuesBySprint(projectKey, sprintId);
+  }
+
   private async runSync(trigger: SyncTrigger): Promise<SyncRunDto> {
     const startedAt = this.now();
     const baseRun: SyncRunDto = {

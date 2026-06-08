@@ -9,17 +9,29 @@ import {
   blockageRecommendResponseSchema,
   blockageRecommendRequestSchema,
   createBlockagePatternRequestSchema,
+  createSprintDemoReportRequestSchema,
+  createSprintDemoReportResponseSchema,
+  createSprintRemarkRequestSchema,
+  createSprintRemarkResponseSchema,
   createUserRequestSchema,
   loginRequestSchema,
   pathIdParamsSchema,
   patchBlockagePatternRequestSchema,
   patchUserRequestSchema,
+  reviewableSprintsResponseSchema,
   sizingRecommendRequestSchema,
   sizingRecommendResponseSchema,
+  sprintDemoMarkdownResponseSchema,
+  sprintDemoReportResponseSchema,
+  sprintEvidenceQuerySchema,
+  sprintEvidenceResponseSchema,
   sprintHistoryQuerySchema,
   sprintHistoryResponseSchema,
+  sprintReviewSprintsQuerySchema,
   syncRunResponseSchema,
-  syncStatusResponseSchema
+  syncStatusResponseSchema,
+  varianceAnalyticsQuerySchema,
+  varianceAnalyticsResponseSchema
 } from "@module1/contracts";
 import type { z } from "zod";
 import { Router } from "express";
@@ -31,12 +43,14 @@ import type { IdentityService } from "./contexts/identity/identity.service.js";
 import type { CatalogService } from "./contexts/ingestion/catalog.service.js";
 import type { SizingEngine } from "./contexts/predictive-sizing/sizing.engine.js";
 import type { BlockageService } from "./contexts/blockage-advisory/blockage.service.js";
+import type { SprintReviewService } from "./contexts/sprint-review/sprint-review.service.js";
 
 type Services = {
   identity: IdentityService;
   catalog: CatalogService;
   sizing: SizingEngine;
   blockage: BlockageService;
+  sprintReview: SprintReviewService;
 };
 
 export function createApiRouter(config: AppConfig, services: Services) {
@@ -52,6 +66,14 @@ export function createApiRouter(config: AppConfig, services: Services) {
     const user = sessionUser(response);
     if (user.role !== "admin") {
       throw new ApiError(403, "FORBIDDEN", "Admin role is required.");
+    }
+    next();
+  });
+
+  const requireManager = asyncHandler(async (_request, response, next) => {
+    const user = sessionUser(response);
+    if (user.role !== "manager" && user.role !== "admin") {
+      throw new ApiError(403, "FORBIDDEN", "Manager or admin role is required.");
     }
     next();
   });
@@ -190,11 +212,70 @@ export function createApiRouter(config: AppConfig, services: Services) {
     json(response, blockagePatternResponseSchema, { pattern: services.blockage.patchPattern(params.id, body) });
   });
 
+  router.get("/sprint-review/sprints", requireSession, asyncHandler(async (request, response) => {
+    const query = sprintReviewSprintsQuerySchema.parse(request.query);
+    json(
+      response,
+      reviewableSprintsResponseSchema,
+      await services.sprintReview.listReviewableSprints(query.projectKey ?? config.DEFAULT_PROJECT_KEY, query.limit)
+    );
+  }));
+
+  router.get("/sprint-review/sprints/:id/evidence", requireSession, asyncHandler(async (request, response) => {
+    const params = pathIdParamsSchema.parse(request.params);
+    const query = sprintEvidenceQuerySchema.parse(request.query);
+    json(response, sprintEvidenceResponseSchema, {
+      evidence: await services.sprintReview.getEvidence(params.id, query.projectKey ?? config.DEFAULT_PROJECT_KEY)
+    });
+  }));
+
+  router.post("/sprint-review/sprints/:id/remarks", requireSession, requireManager, asyncHandler(async (request, response) => {
+    const params = pathIdParamsSchema.parse(request.params);
+    const body = createSprintRemarkRequestSchema.parse(request.body);
+    json(response.status(201), createSprintRemarkResponseSchema, {
+      remark: await services.sprintReview.addRemark(params.id, body.text, sessionUser(response))
+    });
+  }));
+
+  router.post("/sprint-review/reports", requireSession, requireManager, asyncHandler(async (request, response) => {
+    const body = createSprintDemoReportRequestSchema.parse(request.body);
+    json(response.status(201), createSprintDemoReportResponseSchema, {
+      report: await services.sprintReview.createReport(body, sessionUser(response))
+    });
+  }));
+
+  router.get("/sprint-review/reports/:id", requireSession, (request, response) => {
+    const params = pathIdParamsSchema.parse(request.params);
+    json(response, sprintDemoReportResponseSchema, { report: services.sprintReview.getReport(params.id) });
+  });
+
+  router.get("/sprint-review/reports/:id/markdown", requireSession, (request, response) => {
+    const params = pathIdParamsSchema.parse(request.params);
+    const report = services.sprintReview.getReport(params.id);
+    json(response, sprintDemoMarkdownResponseSchema, {
+      reportId: report.id,
+      version: report.version,
+      markdown: report.markdown,
+      createdAt: report.createdAt
+    });
+  });
+
+  router.get("/analytics/variance", requireSession, asyncHandler(async (request, response) => {
+    const query = varianceAnalyticsQuerySchema.parse(request.query);
+    json(response, varianceAnalyticsResponseSchema, {
+      analytics: await services.sprintReview.computeVariance(
+        query.projectKey ?? config.DEFAULT_PROJECT_KEY,
+        query.sprintId,
+        query.trendWindow ?? 6
+      )
+    });
+  }));
+
   return router;
 }
 
 function sessionUser(response: Response) {
-  return response.locals.user as { id: string; username: string; role: "user" | "admin"; active: boolean };
+  return response.locals.user as { id: string; username: string; displayName?: string; role: "user" | "manager" | "admin"; active: boolean };
 }
 
 function json<T extends z.ZodTypeAny>(response: Response, schema: T, body: z.infer<T>) {

@@ -46,6 +46,7 @@ export interface CatalogRepositories {
   upsertCatalog(input: UpsertCatalogInput): Promise<UpsertCatalogResult>;
   listBacklog(filters: BacklogFilters): Promise<BacklogListResult>;
   listClosedSprints(projectKey: string, limit: number): Promise<JiraSprintDto[]>;
+  listIssuesBySprint(projectKey: string, sprintId: string): Promise<JiraIssueDto[]>;
   getIssue(issueKey: string): Promise<JiraIssueDto | undefined>;
   findHistoricalIssues(projectKey: string): Promise<JiraIssueDto[]>;
   hasUsableData(): Promise<boolean>;
@@ -128,6 +129,12 @@ export class InMemoryCatalogRepositories implements CatalogRepositories {
       .filter((sprint) => sprint.projectKey === projectKey && sprint.state === "closed")
       .sort((left, right) => (right.completeDate ?? "").localeCompare(left.completeDate ?? ""))
       .slice(0, limit);
+  }
+
+  async listIssuesBySprint(projectKey: string, sprintId: string): Promise<JiraIssueDto[]> {
+    return [...this.issues.values()]
+      .filter((issue) => issue.projectKey === projectKey && issue.sprintIds.includes(sprintId))
+      .sort((left, right) => left.key.localeCompare(right.key));
   }
 
   async getIssue(issueKey: string): Promise<JiraIssueDto | undefined> {

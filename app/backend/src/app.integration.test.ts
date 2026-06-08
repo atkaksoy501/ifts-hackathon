@@ -173,6 +173,71 @@ describe("api", () => {
     expect(patched.body.pattern.active).toBe(false);
   });
 
+  it("supports module 3 sprint review evidence, manager remarks, reports, and variance", async () => {
+    const app = await createApp(config);
+    const adminCookie = await loginCookie(app);
+
+    await request(app).post("/api/admin/users").set("Cookie", adminCookie).send({
+      username: "manager",
+      password: "manager12345",
+      displayName: "Manager",
+      role: "manager"
+    });
+    const managerLogin = await request(app).post("/api/auth/login").send({ username: "manager", password: "manager12345" });
+    const managerCookie = cookieHeader(managerLogin.headers["set-cookie"]);
+
+    const list = await request(app).get("/api/sprint-review/sprints?projectKey=ICTFT").set("Cookie", managerCookie);
+    expect(list.status).toBe(200);
+    expect(list.body.sprints.length).toBeGreaterThan(0);
+    const sprintId = list.body.sprints[0].id;
+
+    const evidence = await request(app).get(`/api/sprint-review/sprints/${sprintId}/evidence?projectKey=ICTFT`).set("Cookie", managerCookie);
+    expect(evidence.status).toBe(200);
+    expect(evidence.body.evidence.sprint.id).toBe(sprintId);
+
+    const remark = await request(app)
+      .post(`/api/sprint-review/sprints/${sprintId}/remarks`)
+      .set("Cookie", managerCookie)
+      .send({ text: "Demo icin auth ve ingestion akislarini vurgula." });
+    expect(remark.status).toBe(201);
+    expect(remark.body.remark.author.role).toBe("manager");
+
+    const report = await request(app)
+      .post("/api/sprint-review/reports")
+      .set("Cookie", managerCookie)
+      .send({ sprintId, projectKey: "ICTFT" });
+    expect(report.status).toBe(201);
+    expect(report.body.report.language).toBe("tr");
+    expect(report.body.report.markdown).toContain(report.body.report.title);
+
+    const markdown = await request(app).get(`/api/sprint-review/reports/${report.body.report.id}/markdown`).set("Cookie", managerCookie);
+    expect(markdown.status).toBe(200);
+    expect(markdown.body.markdown).toContain("Yonetici Ozeti");
+
+    const variance = await request(app).get(`/api/analytics/variance?projectKey=ICTFT&sprintId=${sprintId}&trendWindow=6`).set("Cookie", managerCookie);
+    expect(variance.status).toBe(200);
+    expect(variance.body.analytics.storyPoints).toMatchObject({ planned: expect.any(Number), actual: expect.any(Number) });
+  });
+
+  it("blocks normal users from module 3 write routes", async () => {
+    const app = await createApp(config);
+    const adminCookie = await loginCookie(app);
+    await request(app).post("/api/admin/users").set("Cookie", adminCookie).send({
+      username: "viewer",
+      password: "viewer12345",
+      role: "user"
+    });
+    const userLogin = await request(app).post("/api/auth/login").send({ username: "viewer", password: "viewer12345" });
+    const userCookie = cookieHeader(userLogin.headers["set-cookie"]);
+
+    const response = await request(app)
+      .post("/api/sprint-review/sprints/sprint-1/remarks")
+      .set("Cookie", userCookie)
+      .send({ text: "Should fail" });
+
+    expect(response.status).toBe(403);
+  });
+
   it("runs manual GitHub state sync and serves filtered backlog read models", async () => {
     const app = await createApp(config, {
       catalogRepositories: new InMemoryCatalogRepositories(),
