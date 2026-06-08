@@ -7,6 +7,7 @@ services:
     env_file:
       - .env.example
     environment:
+      CATALOG_STORE: memory
       MONGO_URI: mongodb://admin:admin123@mongo:27017/?authSource=admin
       FRONTEND_DIST: /app/frontend/dist
     depends_on:
