@@ -1,0 +1,27 @@
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env.example
+    environment:
+      MONGO_URI: mongodb://hackathon:hackathon123@mongo:27017/hackathon?authSource=hackathon
+      FRONTEND_DIST: /app/frontend/dist
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: hackathon
+      MONGO_INITDB_ROOT_PASSWORD: hackathon123
+      MONGO_INITDB_DATABASE: hackathon
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
