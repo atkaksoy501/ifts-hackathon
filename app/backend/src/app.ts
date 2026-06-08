@@ -20,6 +20,7 @@ import { CatalogService, createDemoCatalogSeed } from "./contexts/ingestion/cata
 import {
   FetchGitHubStateClient,
   GitHubContentsStateClient,
+  StaticGitHubStateClient,
   type GitHubStateClient
 } from "./contexts/ingestion/github-state.client.js";
 import { MongoCatalogRepositories } from "./contexts/ingestion/mongo.repositories.js";
@@ -126,6 +127,14 @@ function createUserRepository(config: AppConfig): UserRepository {
 }
 
 function createGitHubStateClient(config: AppConfig): GitHubStateClient {
+  if (config.SYNC_DISABLED || config.NODE_ENV === "test") {
+    return new StaticGitHubStateClient({
+      issues: [],
+      sprints: [],
+      fieldMappings: []
+    });
+  }
+
   if (config.GITHUB_STATE_REPOSITORY) {
     return new GitHubContentsStateClient(
       config.GITHUB_STATE_REPOSITORY,
