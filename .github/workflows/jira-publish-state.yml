@@ -1,0 +1,77 @@
+name: Jira Publish State
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_results:
+        description: "Maximum Jira issues to publish"
+        required: false
+        default: "25"
+      project_key:
+        description: "Optional Jira project key"
+        required: false
+        default: ""
+      jql:
+        description: "Optional JQL override"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  publish-state:
+    name: Publish Jira state once
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Publish Jira state to GitHub branch
+        shell: pwsh
+        env:
+          JIRA_URL: ${{ secrets.JIRA_URL }}
+          JIRA_AUTH_MODE: ${{ secrets.JIRA_AUTH_MODE }}
+          JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+          JIRA_USERNAME: ${{ secrets.JIRA_USERNAME }}
+          JIRA_PROJECT_KEY: ${{ inputs.project_key || secrets.JIRA_PROJECT_KEY }}
+          JIRA_LIVE_JQL: ${{ inputs.jql }}
+          JIRA_MAX_RESULTS: ${{ inputs.max_results }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_BASE_BRANCH: main
+          GITHUB_STATE_BRANCH: jira-live
+          GITHUB_STATE_PATH: jira-live/state.json
+          PYTHONIOENCODING: utf-8
+          PYTHONUTF8: "1"
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          if (-not $env:JIRA_TOKEN) {
+            throw "JIRA_TOKEN secret is not configured for this repository."
+          }
+          if (-not $env:JIRA_URL) {
+            $env:JIRA_URL = "https://jira.turkcell.com.tr"
+          }
+          if (-not $env:JIRA_AUTH_MODE) {
+            $env:JIRA_AUTH_MODE = "bearer"
+          }
+
+          if (Get-Command py -ErrorAction SilentlyContinue) {
+            $python = "py"
+            $pythonArgs = @("-3")
+          } elseif (Get-Command python -ErrorAction SilentlyContinue) {
+            $python = "python"
+            $pythonArgs = @()
+          } elseif (Get-Command python3 -ErrorAction SilentlyContinue) {
+            $python = "python3"
+            $pythonArgs = @()
+          } else {
+            throw "Python is not available on this runner."
+          }
+
+          & $python @pythonArgs integrations/jira/live_bridge/jira_to_github_state.py --once --max-results $env:JIRA_MAX_RESULTS
