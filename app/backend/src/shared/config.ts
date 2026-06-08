@@ -12,19 +12,24 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(8080),
   FRONTEND_ORIGIN: z.string().default("http://localhost:5173"),
-  FRONTEND_DIST: z.string().default("../frontend/dist"),
+  FRONTEND_DIST: z.string().default("frontend/dist"),
   MONGO_URI: z
     .string()
-    .default(
-      "mongodb://hackathon:hackathon123@192.168.0.50:27017/hackathon?authSource=hackathon&authMechanism=SCRAM-SHA-256"
-    ),
+    .default("mongodb://admin:admin123@localhost:27017/?authSource=admin"),
   MONGO_DB_NAME: z.string().default("hackathon"),
   JWT_SECRET: z.string().min(8).default("dev-secret-change-me"),
   JWT_COOKIE_NAME: z.string().default("module1_session"),
   ADMIN_USERNAME: z.string().default("admin"),
   ADMIN_PASSWORD: z.string().min(8).default("admin12345"),
   ADMIN_DISPLAY_NAME: z.string().default("Admin"),
-  GITHUB_STATE_URL: z.string().url().default("https://raw.githubusercontent.com/example/jira-live/main/state.json"),
+  GITHUB_TOKEN: z.string().optional(),
+  GITHUB_STATE_REPOSITORY: z.string().optional(),
+  GITHUB_STATE_BRANCH: z.string().default("jira-live"),
+  GITHUB_STATE_PATH: z.string().default("jira-live/state.json"),
+  GITHUB_STATE_URL: z
+    .string()
+    .url()
+    .default("https://raw.githubusercontent.com/atkaksoy501/ifts-hackathon/jira-live/jira-live/state.json"),
   GITHUB_STATE_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
   CATALOG_STORE: z.enum(["memory", "mongo"]).default("mongo"),
   SYNC_DISABLED: booleanEnvSchema.default(false),
