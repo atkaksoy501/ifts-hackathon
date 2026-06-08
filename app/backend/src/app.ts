@@ -20,6 +20,7 @@ import { CatalogService, createDemoCatalogSeed } from "./contexts/ingestion/cata
 import {
   FetchGitHubStateClient,
   GitHubContentsStateClient,
+  StaticGitHubStateClient,
   type GitHubStateClient
 } from "./contexts/ingestion/github-state.client.js";
 import { MongoCatalogRepositories } from "./contexts/ingestion/mongo.repositories.js";
@@ -126,6 +127,14 @@ function createUserRepository(config: AppConfig): UserRepository {
 }
 
 function createGitHubStateClient(config: AppConfig): GitHubStateClient {
+  if (config.SYNC_DISABLED || config.NODE_ENV === "test") {
+    return new StaticGitHubStateClient({
+      issues: [],
+      sprints: [],
+      fieldMappings: []
+    });
+  }
+
   if (config.GITHUB_STATE_REPOSITORY) {
     return new GitHubContentsStateClient(
       config.GITHUB_STATE_REPOSITORY,
@@ -134,6 +143,10 @@ function createGitHubStateClient(config: AppConfig): GitHubStateClient {
       config.GITHUB_STATE_TIMEOUT_MS,
       config.GITHUB_TOKEN
     );
+  }
+
+  if (!config.GITHUB_STATE_URL) {
+    throw new Error("GitHub state source is not configured. Set GITHUB_STATE_REPOSITORY or GITHUB_STATE_URL.");
   }
 
   return new FetchGitHubStateClient(config.GITHUB_STATE_URL, config.GITHUB_STATE_TIMEOUT_MS, config.GITHUB_TOKEN);
