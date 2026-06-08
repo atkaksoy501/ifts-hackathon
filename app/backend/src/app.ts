@@ -109,7 +109,7 @@ export async function createApp(config: AppConfig = loadConfig(), options: Creat
 }
 
 function createCatalogRepositories(config: AppConfig): CatalogRepositories {
-  if (config.NODE_ENV === "test" || config.CATALOG_STORE === "memory") {
+  if (config.NODE_ENV === "test" || config.CATALOG_STORE === "memory" || !config.MONGO_URI) {
     const seed = config.NODE_ENV === "production" ? undefined : createDemoCatalogSeed(config.DEFAULT_PROJECT_KEY);
     return new InMemoryCatalogRepositories(seed);
   }
@@ -118,7 +118,7 @@ function createCatalogRepositories(config: AppConfig): CatalogRepositories {
 }
 
 function createUserRepository(config: AppConfig): UserRepository {
-  if (config.NODE_ENV === "test" || config.CATALOG_STORE === "memory") {
+  if (config.NODE_ENV === "test" || config.CATALOG_STORE === "memory" || !config.MONGO_URI) {
     return new InMemoryUserRepository();
   }
 
@@ -140,7 +140,7 @@ function createGitHubStateClient(config: AppConfig): GitHubStateClient {
 }
 
 function createBlockagePatternRepository(config: AppConfig): BlockagePatternRepository {
-  if (config.NODE_ENV === "test" || config.CATALOG_STORE === "memory") {
+  if (config.NODE_ENV === "test" || config.CATALOG_STORE === "memory" || !config.MONGO_URI) {
     return new InMemoryBlockagePatternRepository();
   }
 
@@ -148,7 +148,7 @@ function createBlockagePatternRepository(config: AppConfig): BlockagePatternRepo
 }
 
 function createBlockageRecommendationRepository(config: AppConfig): BlockageRecommendationRepository {
-  if (config.NODE_ENV === "test" || config.CATALOG_STORE === "memory") {
+  if (config.NODE_ENV === "test" || config.CATALOG_STORE === "memory" || !config.MONGO_URI) {
     return new InMemoryBlockageRecommendationRepository();
   }
 
