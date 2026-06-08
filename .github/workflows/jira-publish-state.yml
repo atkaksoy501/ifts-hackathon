@@ -16,9 +16,6 @@ on:
         required: false
         default: ""
 
-permissions:
-  contents: write
-
 jobs:
   publish-state:
     name: Publish Jira state once
@@ -41,8 +38,8 @@ jobs:
           JIRA_PROJECT_KEY: ${{ inputs.project_key || secrets.JIRA_PROJECT_KEY }}
           JIRA_LIVE_JQL: ${{ inputs.jql }}
           JIRA_MAX_RESULTS: ${{ inputs.max_results }}
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_STATE_WRITER_TOKEN }}
+          GITHUB_REPOSITORY: ${{ vars.GITHUB_STATE_REPOSITORY || 'atkaksoy501/hackathon-priv' }}
           GITHUB_BASE_BRANCH: main
           GITHUB_STATE_BRANCH: jira-live
           GITHUB_STATE_PATH: jira-live/state.json
@@ -53,6 +50,9 @@ jobs:
 
           if (-not $env:JIRA_TOKEN) {
             throw "JIRA_TOKEN secret is not configured for this repository."
+          }
+          if (-not $env:GITHUB_TOKEN) {
+            throw "GITHUB_STATE_WRITER_TOKEN secret is not configured for this repository."
           }
           if (-not $env:JIRA_URL) {
             $env:JIRA_URL = "https://jira.turkcell.com.tr"

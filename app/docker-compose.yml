@@ -7,7 +7,7 @@ services:
     env_file:
       - .env.example
     environment:
-      MONGO_URI: mongodb://hackathon:hackathon123@mongo:27017/hackathon?authSource=admin
+      MONGO_URI: mongodb://admin:admin123@mongo:27017/?authSource=admin
       FRONTEND_DIST: /app/frontend/dist
     depends_on:
       - mongo
@@ -17,8 +17,8 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: hackathon
-      MONGO_INITDB_ROOT_PASSWORD: hackathon123
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
       MONGO_INITDB_DATABASE: hackathon
     volumes:
       - mongo-data:/data/db
