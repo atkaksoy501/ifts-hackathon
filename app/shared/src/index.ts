@@ -151,16 +151,19 @@ export const blockageRecommendationSchema = z.object({
 
 export type BlockageRecommendationDto = z.infer<typeof blockageRecommendationSchema>;
 
+export const usernameSchema = z.string().trim().min(1);
+export const passwordSchema = z.string().min(8);
+
 export const loginRequestSchema = z.object({
-  username: z.string().min(1),
+  username: usernameSchema,
   password: z.string().min(1)
 });
 
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
 export const createUserRequestSchema = z.object({
-  username: z.string().min(1),
-  password: z.string().min(8),
+  username: usernameSchema,
+  password: passwordSchema,
   displayName: z.string().optional(),
   role: userRoleSchema,
   active: z.boolean().optional()
@@ -210,6 +213,107 @@ export const patchBlockagePatternRequestSchema = createBlockagePatternRequestSch
   .refine((value) => Object.keys(value).length > 0, "Patch body cannot be empty");
 
 export type PatchBlockagePatternRequest = z.infer<typeof patchBlockagePatternRequestSchema>;
+
+const optionalStringQuerySchema = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() ? value : undefined),
+  z.string().optional()
+);
+
+const optionalPositiveIntQuerySchema = z.preprocess((value) => {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : value;
+}, z.number().int().min(1).optional());
+
+export const healthResponseSchema = z.object({
+  ok: z.literal(true),
+  service: z.literal("module1-advisor")
+});
+
+export type HealthResponse = z.infer<typeof healthResponseSchema>;
+
+export const authUserResponseSchema = z.object({
+  user: sessionUserSchema
+});
+
+export type AuthUserResponse = z.infer<typeof authUserResponseSchema>;
+
+export const adminUsersResponseSchema = z.object({
+  users: z.array(userAccountSchema)
+});
+
+export type AdminUsersResponse = z.infer<typeof adminUsersResponseSchema>;
+
+export const adminUserResponseSchema = z.object({
+  user: userAccountSchema
+});
+
+export type AdminUserResponse = z.infer<typeof adminUserResponseSchema>;
+
+export const pathIdParamsSchema = z.object({
+  id: z.string().min(1)
+});
+
+export type PathIdParams = z.infer<typeof pathIdParamsSchema>;
+
+export const backlogQuerySchema = z.object({
+  projectKey: optionalStringQuerySchema,
+  issueType: optionalStringQuerySchema,
+  statusCategory: optionalStringQuerySchema,
+  label: optionalStringQuerySchema,
+  component: optionalStringQuerySchema,
+  search: optionalStringQuerySchema,
+  page: optionalPositiveIntQuerySchema,
+  pageSize: optionalPositiveIntQuerySchema
+});
+
+export type BacklogQuery = z.infer<typeof backlogQuerySchema>;
+
+export const backlogResponseSchema = z.object({
+  issues: z.array(jiraIssueSchema),
+  page: pageInfoSchema,
+  warnings: z.array(warningSchema)
+});
+
+export type BacklogResponse = z.infer<typeof backlogResponseSchema>;
+
+export const sprintHistoryQuerySchema = z.object({
+  projectKey: optionalStringQuerySchema,
+  limit: optionalPositiveIntQuerySchema
+});
+
+export type SprintHistoryQuery = z.infer<typeof sprintHistoryQuerySchema>;
+
+export const sprintHistoryResponseSchema = z.object({
+  sprints: z.array(jiraSprintSchema),
+  warnings: z.array(warningSchema)
+});
+
+export type SprintHistoryResponse = z.infer<typeof sprintHistoryResponseSchema>;
+
+export const syncStatusResponseSchema = syncStatusSchema;
+export type SyncStatusResponse = z.infer<typeof syncStatusResponseSchema>;
+
+export const syncRunResponseSchema = syncRunSchema;
+export type SyncRunResponse = z.infer<typeof syncRunResponseSchema>;
+
+export const sizingRecommendResponseSchema = sizingRecommendationSchema;
+export type SizingRecommendResponse = z.infer<typeof sizingRecommendResponseSchema>;
+
+export const blockageRecommendResponseSchema = blockageRecommendationSchema;
+export type BlockageRecommendResponse = z.infer<typeof blockageRecommendResponseSchema>;
+
+export const blockagePatternsResponseSchema = z.object({
+  patterns: z.array(blockagePatternSchema)
+});
+
+export type BlockagePatternsResponse = z.infer<typeof blockagePatternsResponseSchema>;
+
+export const blockagePatternResponseSchema = z.object({
+  pattern: blockagePatternSchema
+});
+
+export type BlockagePatternResponse = z.infer<typeof blockagePatternResponseSchema>;
 
 export type ErrorEnvelope = {
   error: {

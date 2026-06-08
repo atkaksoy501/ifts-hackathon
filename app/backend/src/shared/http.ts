@@ -22,8 +22,16 @@ export function asyncHandler(
   };
 }
 
-export function errorHandler(error: unknown, request: Request, response: Response, _next: NextFunction) {
+export function correlationIdMiddleware(request: Request, response: Response, next: NextFunction) {
   const correlationId = request.headers["x-correlation-id"]?.toString() ?? randomUUID();
+  response.locals.correlationId = correlationId;
+  response.setHeader("x-correlation-id", correlationId);
+  next();
+}
+
+export function errorHandler(error: unknown, request: Request, response: Response, _next: NextFunction) {
+  const correlationId =
+    response.locals.correlationId?.toString() ?? request.headers["x-correlation-id"]?.toString() ?? randomUUID();
 
   if (error instanceof ZodError) {
     return response.status(400).json({

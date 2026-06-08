@@ -22,13 +22,13 @@ export function readSession(token: string | undefined, config: AppConfig): Sessi
 
   try {
     const decoded = jwt.verify(token, config.JWT_SECRET);
-    if (typeof decoded === "string" || typeof decoded.sub !== "string") {
+    if (typeof decoded === "string" || !isSessionClaims(decoded)) {
       throw new ApiError(401, "UNAUTHENTICATED", "Session cookie is invalid.");
     }
 
     return {
       sub: decoded.sub,
-      role: decoded.role === "admin" ? "admin" : "user"
+      role: decoded.role
     };
   } catch (error) {
     if (error instanceof ApiError) {
@@ -47,6 +47,10 @@ export function setSessionCookie(response: Response, token: string, config: AppC
     path: "/",
     maxAge: 8 * 60 * 60 * 1000
   });
+}
+
+function isSessionClaims(value: jwt.JwtPayload): value is jwt.JwtPayload & SessionClaims {
+  return typeof value.sub === "string" && (value.role === "admin" || value.role === "user");
 }
 
 export function clearSessionCookie(response: Response, config: AppConfig) {

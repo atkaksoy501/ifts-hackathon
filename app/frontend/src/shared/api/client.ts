@@ -1,18 +1,30 @@
 import {
   blockageRecommendRequestSchema,
+  createBlockagePatternRequestSchema,
+  createUserRequestSchema,
   loginRequestSchema,
+  patchBlockagePatternRequestSchema,
+  patchUserRequestSchema,
   sizingRecommendRequestSchema,
+  type AdminUserResponse,
+  type AdminUsersResponse,
+  type BacklogQuery,
+  type BacklogResponse,
+  type BlockagePatternResponse,
+  type BlockagePatternsResponse,
   type BlockageRecommendationDto,
-  type JiraIssueDto,
+  type CreateBlockagePatternRequest,
+  type CreateUserRequest,
+  type ErrorEnvelope,
   type LoginRequest,
+  type PatchBlockagePatternRequest,
+  type PatchUserRequest,
   type SessionUserDto,
   type SizingRecommendationDto,
+  type SprintHistoryResponse,
+  type SyncRunDto,
   type SyncStatusDto
 } from "@module1/contracts";
-
-type BacklogResponse = {
-  issues: JiraIssueDto[];
-};
 
 export class ApiClient {
   constructor(private readonly baseUrl = "/api") {}
@@ -28,12 +40,24 @@ export class ApiClient {
     return this.request("/auth/me");
   }
 
+  async logout(): Promise<void> {
+    await this.request("/auth/logout", { method: "POST", expectJson: false });
+  }
+
   syncStatus(): Promise<SyncStatusDto> {
     return this.request("/sync/status");
   }
 
-  backlog(projectKey: string): Promise<BacklogResponse> {
-    return this.request(`/backlog?projectKey=${encodeURIComponent(projectKey)}`);
+  manualSync(): Promise<SyncRunDto> {
+    return this.request("/sync/github/run", { method: "POST" });
+  }
+
+  backlog(query: BacklogQuery): Promise<BacklogResponse> {
+    return this.request(`/backlog?${toSearchParams(query)}`);
+  }
+
+  sprintHistory(projectKey: string): Promise<SprintHistoryResponse> {
+    return this.request(`/sprints/history?${toSearchParams({ projectKey, limit: 5 })}`);
   }
 
   sizing(input: unknown): Promise<SizingRecommendationDto> {
@@ -50,7 +74,46 @@ export class ApiClient {
     });
   }
 
-  private async request<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  adminUsers(): Promise<AdminUsersResponse> {
+    return this.request("/admin/users");
+  }
+
+  createUser(input: CreateUserRequest): Promise<AdminUserResponse> {
+    return this.request("/admin/users", {
+      method: "POST",
+      body: createUserRequestSchema.parse(input)
+    });
+  }
+
+  patchUser(id: string, input: PatchUserRequest): Promise<AdminUserResponse> {
+    return this.request(`/admin/users/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: patchUserRequestSchema.parse(input)
+    });
+  }
+
+  blockagePatterns(): Promise<BlockagePatternsResponse> {
+    return this.request("/admin/blockage-patterns");
+  }
+
+  createBlockagePattern(input: CreateBlockagePatternRequest): Promise<BlockagePatternResponse> {
+    return this.request("/admin/blockage-patterns", {
+      method: "POST",
+      body: createBlockagePatternRequestSchema.parse(input)
+    });
+  }
+
+  patchBlockagePattern(id: string, input: PatchBlockagePatternRequest): Promise<BlockagePatternResponse> {
+    return this.request(`/admin/blockage-patterns/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: patchBlockagePatternRequestSchema.parse(input)
+    });
+  }
+
+  private async request<T>(
+    path: string,
+    init: { method?: string; body?: unknown; expectJson?: boolean } = {}
+  ): Promise<T> {
     const requestInit: RequestInit = {
       method: init.method ?? "GET",
       credentials: "include",
@@ -67,7 +130,11 @@ export class ApiClient {
     const response = await fetch(`${this.baseUrl}${path}`, requestInit);
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
+      throw new ApiClientError(response.status, await parseErrorMessage(response));
+    }
+
+    if (init.expectJson === false || response.status === 204) {
+      return undefined as T;
     }
 
     return response.json() as Promise<T>;
@@ -75,3 +142,32 @@ export class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+export class ApiClientError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = "ApiClientError";
+  }
+}
+
+function toSearchParams(input: Record<string, unknown>) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined && value !== "") {
+      params.set(key, String(value));
+    }
+  }
+  return params.toString();
+}
+
+async function parseErrorMessage(response: Response) {
+  try {
+    const payload = (await response.json()) as Partial<ErrorEnvelope>;
+    return payload.error?.message ?? `API request failed: ${response.status}`;
+  } catch {
+    return `API request failed: ${response.status}`;
+  }
+}
