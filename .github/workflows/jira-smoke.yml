@@ -28,12 +28,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Show runner context
         shell: pwsh
         run: |
           "Runner: $env:RUNNER_NAME"
           "OS: $env:RUNNER_OS"
           "Workspace: $env:GITHUB_WORKSPACE"
+          python --version
 
       - name: Run Jira smoke test
         shell: pwsh
