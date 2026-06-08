@@ -33,6 +33,12 @@ Tek seferlik test:
 py -3 integrations\jira\live_bridge\jira_to_github_state.py --once
 ```
 
+GitHub Actions uzerinden tek seferlik publish:
+
+```bash
+gh workflow run jira-publish-state.yml -R atkaksoy501/ifts-hackathon -f max_results=25
+```
+
 ## Mac Mini: Mongo Ingest + UI
 
 Mac mini GitHub state dosyasini okur, MongoDB'ye upsert eder ve UI'i sunar.
