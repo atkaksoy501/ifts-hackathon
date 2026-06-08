@@ -147,7 +147,74 @@ class GitHubStateWriter:
         }
 
     def api_url(self, path: str) -> str:
-        return f"https://api.github.com/repos/{self.repo}/{path.lstrip('/')}"
+        normalized = path.lstrip("/")
+        if not normalized:
+            return f"https://api.github.com/repos/{self.repo}"
+        return f"https://api.github.com/repos/{self.repo}/{normalized}"
+
+    def repository_metadata(self) -> dict[str, Any]:
+        return request_json("GET", self.api_url(""), self.headers)
+
+    def default_branch_name(self) -> str:
+        metadata = self.repository_metadata()
+        return (metadata.get("default_branch") or self.base_branch or "main").strip()
+
+    def bootstrap_empty_repository(self) -> None:
+        branch_name = self.default_branch_name()
+        readme_body = (
+            "# Jira Live State\n\n"
+            "This private repository stores Jira state published for the hackathon demo.\n"
+        )
+        blob = request_json(
+            "POST",
+            self.api_url("git/blobs"),
+            self.headers,
+            {"content": readme_body, "encoding": "utf-8"},
+        )
+        blob_sha = blob.get("sha")
+        if not blob_sha:
+            raise ValueError("Could not create blob while bootstrapping the private repository")
+
+        tree = request_json(
+            "POST",
+            self.api_url("git/trees"),
+            self.headers,
+            {
+                "tree": [
+                    {
+                        "path": "README.md",
+                        "mode": "100644",
+                        "type": "blob",
+                        "sha": blob_sha,
+                    }
+                ]
+            },
+        )
+        tree_sha = tree.get("sha")
+        if not tree_sha:
+            raise ValueError("Could not create tree while bootstrapping the private repository")
+
+        commit = request_json(
+            "POST",
+            self.api_url("git/commits"),
+            self.headers,
+            {
+                "message": "Initialize private Jira state repository",
+                "tree": tree_sha,
+                "parents": [],
+            },
+        )
+        commit_sha = commit.get("sha")
+        if not commit_sha:
+            raise ValueError("Could not create initial commit while bootstrapping the private repository")
+
+        request_json(
+            "POST",
+            self.api_url("git/refs"),
+            self.headers,
+            {"ref": f"refs/heads/{branch_name}", "sha": commit_sha},
+        )
+        self.base_branch = branch_name
 
     def ensure_branch(self) -> None:
         try:
@@ -157,10 +224,18 @@ class GitHubStateWriter:
             if exc.code != 404:
                 raise
 
-        base_ref = request_json("GET", self.api_url(f"git/ref/heads/{self.base_branch}"), self.headers)
+        try:
+            base_ref = request_json("GET", self.api_url(f"git/ref/heads/{self.base_branch}"), self.headers)
+        except urllib.error.HTTPError as exc:
+            if exc.code != 404:
+                raise
+            self.bootstrap_empty_repository()
+            base_ref = request_json("GET", self.api_url(f"git/ref/heads/{self.base_branch}"), self.headers)
         sha = ((base_ref.get("object") or {}).get("sha"))
         if not sha:
             raise ValueError(f"Could not read base branch sha for {self.base_branch}")
+        if self.state_branch == self.base_branch:
+            return
         request_json("POST", self.api_url("git/refs"), self.headers, {"ref": f"refs/heads/{self.state_branch}", "sha": sha})
 
     def current_file_sha(self) -> str | None:
