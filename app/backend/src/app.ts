@@ -136,6 +136,10 @@ function createGitHubStateClient(config: AppConfig): GitHubStateClient {
     );
   }
 
+  if (!config.GITHUB_STATE_URL) {
+    throw new Error("GitHub state source is not configured. Set GITHUB_STATE_REPOSITORY or GITHUB_STATE_URL.");
+  }
+
   return new FetchGitHubStateClient(config.GITHUB_STATE_URL, config.GITHUB_STATE_TIMEOUT_MS, config.GITHUB_TOKEN);
 }
 
