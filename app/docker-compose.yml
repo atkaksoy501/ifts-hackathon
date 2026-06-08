@@ -5,24 +5,7 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - .env.example
+      - .env
     environment:
-      CATALOG_STORE: memory
-      MONGO_URI: mongodb://admin:admin123@mongo:27017/?authSource=admin
+      CATALOG_STORE: mongo
       FRONTEND_DIST: /app/frontend/dist
-    depends_on:
-      - mongo
-
-  mongo:
-    image: mongo:7
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin123
-      MONGO_INITDB_DATABASE: hackathon
-    volumes:
-      - mongo-data:/data/db
-
-volumes:
-  mongo-data:

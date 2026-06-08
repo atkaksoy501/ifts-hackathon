@@ -64,6 +64,7 @@ export class MongoBlockagePatternRepository implements BlockagePatternRepository
   private readonly client: MongoClient;
   private db: Db | undefined;
   private readonly cache = new Map<string, BlockagePatternDto>();
+  private readonly pendingWrites = new Set<Promise<void>>();
 
   constructor(
     mongoUri: string,
@@ -87,6 +88,7 @@ export class MongoBlockagePatternRepository implements BlockagePatternRepository
   }
 
   async close(): Promise<void> {
+    await Promise.all(this.pendingWrites);
     await this.client.close();
   }
 
@@ -100,7 +102,7 @@ export class MongoBlockagePatternRepository implements BlockagePatternRepository
 
   savePattern(pattern: BlockagePatternDto): BlockagePatternDto {
     this.cache.set(pattern.id, pattern);
-    void this.patterns.updateOne({ id: pattern.id }, { $set: pattern }, { upsert: true });
+    this.trackWrite(this.patterns.updateOne({ id: pattern.id }, { $set: pattern }, { upsert: true }));
     return pattern;
   }
 
@@ -118,12 +120,26 @@ export class MongoBlockagePatternRepository implements BlockagePatternRepository
   private get patterns(): Collection<BlockagePatternDto> {
     return this.database.collection<BlockagePatternDto>("blockage_patterns");
   }
+
+  private trackWrite(write: Promise<unknown>): void {
+    let tracked: Promise<void>;
+    tracked = write
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        console.error("Mongo blockage pattern write failed", error);
+      })
+      .finally(() => {
+        this.pendingWrites.delete(tracked);
+      });
+    this.pendingWrites.add(tracked);
+  }
 }
 
 export class MongoBlockageRecommendationRepository implements BlockageRecommendationRepository {
   private readonly client: MongoClient;
   private db: Db | undefined;
   private readonly cache: BlockageRecommendationDto[] = [];
+  private readonly pendingWrites = new Set<Promise<void>>();
 
   constructor(
     mongoUri: string,
@@ -143,12 +159,13 @@ export class MongoBlockageRecommendationRepository implements BlockageRecommenda
   }
 
   async close(): Promise<void> {
+    await Promise.all(this.pendingWrites);
     await this.client.close();
   }
 
   saveBlockageRecommendation(recommendation: BlockageRecommendationDto): BlockageRecommendationDto {
     this.cache.unshift(recommendation);
-    void this.recommendations.updateOne({ id: recommendation.id }, { $set: recommendation }, { upsert: true });
+    this.trackWrite(this.recommendations.updateOne({ id: recommendation.id }, { $set: recommendation }, { upsert: true }));
     return recommendation;
   }
 
@@ -165,6 +182,19 @@ export class MongoBlockageRecommendationRepository implements BlockageRecommenda
 
   private get recommendations(): Collection<BlockageRecommendationDto> {
     return this.database.collection<BlockageRecommendationDto>("recommendations");
+  }
+
+  private trackWrite(write: Promise<unknown>): void {
+    let tracked: Promise<void>;
+    tracked = write
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        console.error("Mongo blockage recommendation write failed", error);
+      })
+      .finally(() => {
+        this.pendingWrites.delete(tracked);
+      });
+    this.pendingWrites.add(tracked);
   }
 }
 

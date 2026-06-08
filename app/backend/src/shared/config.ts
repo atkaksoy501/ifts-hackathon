@@ -1,5 +1,10 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "node:path";
 import { z } from "zod";
+
+for (const envPath of [".env", "../.env", "app/.env"]) {
+  dotenv.config({ path: path.resolve(process.cwd(), envPath) });
+}
 
 const booleanEnvSchema = z.preprocess((value) => {
   if (typeof value !== "string") return value;
