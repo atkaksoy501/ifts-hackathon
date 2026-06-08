@@ -7,7 +7,7 @@ services:
     env_file:
       - .env.example
     environment:
-      MONGO_URI: mongodb://hackathon:hackathon123@mongo:27017/hackathon?authSource=hackathon
+      MONGO_URI: mongodb://hackathon:hackathon123@mongo:27017/hackathon?authSource=admin
       FRONTEND_DIST: /app/frontend/dist
     depends_on:
       - mongo

@@ -28,6 +28,24 @@ jobs:
           echo "OS: $RUNNER_OS"
           echo "Workspace: $GITHUB_WORKSPACE"
 
+      - name: Install app dependencies
+        working-directory: app
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Build app
+        working-directory: app
+        run: pnpm build
+
+      - name: Run unit and integration tests
+        working-directory: app
+        run: pnpm test
+
+      - name: Run coverage thresholds
+        working-directory: app
+        run: pnpm coverage
+
       - name: Run SonarQube analysis
         uses: SonarSource/sonarqube-scan-action@v6
         env:
@@ -44,6 +62,3 @@ jobs:
 
       - name: Run Semgrep analysis
         run: semgrep scan --config auto --error --metrics=off .
-
-      - name: Placeholder
-        run: echo "Add build, test, and deploy steps here."

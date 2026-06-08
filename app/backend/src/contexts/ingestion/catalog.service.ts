@@ -1,6 +1,9 @@
 import type { JiraIssueDto, JiraSprintDto, SyncRunDto, SyncStatusDto, WarningDto } from "@module1/contracts";
 import { randomUUID } from "node:crypto";
 import { ApiError } from "../../shared/http.js";
+import type { GitHubStateClient } from "./github-state.client.js";
+import { normalizeGitHubState } from "./normalizer.js";
+import type { CatalogRepositories } from "./repositories.js";
 
 type BacklogQuery = {
   projectKey: string;
@@ -13,92 +16,87 @@ type BacklogQuery = {
   pageSize?: number;
 };
 
+export type SyncTrigger = "manual" | "startup" | "interval";
+export type Clock = () => Date;
+
 export class CatalogService {
-  private latestRun: SyncRunDto | undefined;
-  private readonly issues = new Map<string, JiraIssueDto>();
-  private readonly sprints = new Map<string, JiraSprintDto>();
+  private runningSync: Promise<SyncRunDto> | undefined;
 
-  constructor(private readonly defaultProjectKey: string) {
-    this.seedDemoData(defaultProjectKey);
-  }
+  constructor(
+    private readonly repositories: CatalogRepositories,
+    private readonly githubStateClient: GitHubStateClient,
+    private readonly defaultProjectKey: string,
+    private readonly clock: Clock = () => new Date()
+  ) {}
 
-  getSyncStatus(): SyncStatusDto {
-    const projectKeys = [...new Set([...this.issues.values()].map((issue) => issue.projectKey))];
-    const warnings = this.latestRun?.warnings ?? [
-      {
-        code: "SYNC_NOT_CONFIGURED",
-        message: "GitHub state sync has not run in this scaffold yet.",
+  async getSyncStatus(): Promise<SyncStatusDto> {
+    const [latestRun, lastSuccessfulRun, projectKeys, hasUsableData] = await Promise.all([
+      this.repositories.latestSyncRun(),
+      this.repositories.lastSuccessfulSyncRun(),
+      this.repositories.listProjectKeys(),
+      this.repositories.hasUsableData()
+    ]);
+
+    const warnings: WarningDto[] = [];
+    if (!latestRun) {
+      warnings.push({
+        code: "SYNC_NOT_RUN",
+        message: "GitHub state sync has not run yet.",
         severity: "warning"
-      }
-    ];
+      });
+    } else if (latestRun.status === "failed") {
+      warnings.push({
+        code: "LAST_SYNC_FAILED",
+        message: "Latest sync failed; existing catalog data was preserved.",
+        severity: "warning"
+      });
+    }
+    warnings.push(...(latestRun?.warnings ?? []));
 
     const status: SyncStatusDto = {
       projectKeys,
-      hasUsableData: this.issues.size > 0,
+      hasUsableData,
       warnings
     };
-
-    if (this.latestRun) {
-      status.latestRun = this.latestRun;
-      if (this.latestRun.status === "success" || this.latestRun.status === "warning") {
-        status.lastSuccessfulSyncAt = this.latestRun.completedAt;
-      }
-    }
-
+    assignOptional(status, "latestRun", latestRun);
+    assignOptional(status, "lastSuccessfulSyncAt", lastSuccessfulRun?.completedAt);
     return status;
   }
 
-  runManualSync(): SyncRunDto {
-    const now = new Date().toISOString();
-    const warnings: WarningDto[] = [
-      {
-        code: "GITHUB_CLIENT_STUB",
-        message: "Manual sync route is wired; GitHub state adapter is a TODO.",
-        severity: "warning"
-      }
-    ];
-
-    this.latestRun = {
-      id: randomUUID(),
-      source: "github-state",
-      status: "warning",
-      startedAt: now,
-      completedAt: now,
-      issueUpserts: this.issues.size,
-      sprintUpserts: this.sprints.size,
-      fieldMappingUpserts: 1,
-      warnings
-    };
-
-    return this.latestRun;
+  async runManualSync(): Promise<SyncRunDto> {
+    return await this.runSync("manual");
   }
 
-  listBacklog(query: BacklogQuery) {
+  async runScheduledSync(_trigger: Exclude<SyncTrigger, "manual">): Promise<SyncRunDto> {
+    if (this.runningSync) return await this.runningSync;
+    this.runningSync = this.runSync(_trigger).finally(() => {
+      this.runningSync = undefined;
+    });
+    return await this.runningSync;
+  }
+
+  async listBacklog(query: BacklogQuery) {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 25;
-    const search = query.search?.toLowerCase();
-    const filtered = [...this.issues.values()].filter((issue) => {
-      if (issue.projectKey !== query.projectKey) return false;
-      if (issue.statusCategory === "Done") return false;
-      if (query.issueType && issue.issueType !== query.issueType) return false;
-      if (query.statusCategory && issue.statusCategory !== query.statusCategory) return false;
-      if (query.label && !issue.labels.includes(query.label)) return false;
-      if (query.component && !issue.components.includes(query.component)) return false;
-      if (search && !`${issue.key} ${issue.summary} ${issue.description ?? ""}`.toLowerCase().includes(search)) {
-        return false;
-      }
-      return true;
+    const result = await this.repositories.listBacklog({
+      projectKey: query.projectKey,
+      ...(query.issueType === undefined ? {} : { issueType: query.issueType }),
+      ...(query.statusCategory === undefined ? {} : { statusCategory: query.statusCategory }),
+      ...(query.label === undefined ? {} : { label: query.label }),
+      ...(query.component === undefined ? {} : { component: query.component }),
+      ...(query.search === undefined ? {} : { search: query.search }),
+      page,
+      pageSize
     });
 
-    const start = (page - 1) * pageSize;
     return {
-      issues: filtered.slice(start, start + pageSize),
+      issues: result.issues,
       page: {
         page,
         pageSize,
-        total: filtered.length
+        total: result.total
       },
-      warnings: filtered.length
+      warnings: result.total
         ? []
         : [
             {
@@ -110,10 +108,8 @@ export class CatalogService {
     };
   }
 
-  listClosedSprints(projectKey = this.defaultProjectKey, limit = 10) {
-    const sprints = [...this.sprints.values()]
-      .filter((sprint) => sprint.projectKey === projectKey)
-      .slice(0, limit);
+  async listClosedSprints(projectKey = this.defaultProjectKey, limit = 10) {
+    const sprints = await this.repositories.listClosedSprints(projectKey, limit);
 
     return {
       sprints,
@@ -130,8 +126,8 @@ export class CatalogService {
     };
   }
 
-  getIssue(issueKey: string, projectKey?: string): JiraIssueDto {
-    const issue = this.issues.get(issueKey);
+  async getIssue(issueKey: string, projectKey?: string): Promise<JiraIssueDto> {
+    const issue = await this.repositories.getIssue(issueKey);
     if (!issue || (projectKey && issue.projectKey !== projectKey)) {
       throw new ApiError(404, "NOT_FOUND", "Issue was not found.");
     }
@@ -139,70 +135,121 @@ export class CatalogService {
     return issue;
   }
 
-  findHistoricalIssues(projectKey: string): JiraIssueDto[] {
-    return [...this.issues.values()].filter((issue) => issue.projectKey === projectKey && issue.statusCategory === "Done");
+  async findHistoricalIssues(projectKey: string): Promise<JiraIssueDto[]> {
+    return await this.repositories.findHistoricalIssues(projectKey);
   }
 
-  private seedDemoData(projectKey: string) {
-    const now = new Date().toISOString();
-    const issues: JiraIssueDto[] = [
-      {
-        key: `${projectKey}-101`,
-        projectKey,
-        summary: "Login akışı ve session guard",
-        description: "Kullanıcı login olur, httpOnly cookie ile session korunur.",
-        issueType: "Story",
-        statusCategory: "Done",
-        statusName: "Done",
-        sprintIds: ["sprint-1"],
-        storyPoints: 5,
-        timeSpentHours: 28,
-        labels: ["auth"],
-        components: ["identity"],
-        updatedAt: now
-      },
-      {
-        key: `${projectKey}-102`,
-        projectKey,
-        summary: "Backlog verisini normalize et",
-        description: "GitHub state JSON okunur ve Mongo read model upsert edilir.",
-        issueType: "Story",
-        statusCategory: "Done",
-        statusName: "Done",
-        sprintIds: ["sprint-2"],
-        storyPoints: 8,
-        timeSpentHours: 44,
-        labels: ["sync"],
-        components: ["ingestion"],
-        updatedAt: now
-      },
-      {
-        key: `${projectKey}-201`,
-        projectKey,
-        summary: "Seçilen issue için sizing önerisi göster",
-        description: "Benzer historical issue listesinden story point ve ideal saat öner.",
-        issueType: "Story",
-        statusCategory: "To Do",
-        statusName: "Backlog",
-        sprintIds: [],
-        labels: ["sizing"],
-        components: ["recommendation"],
-        updatedAt: now
-      }
-    ];
+  private async runSync(trigger: SyncTrigger): Promise<SyncRunDto> {
+    const startedAt = this.now();
+    const baseRun: SyncRunDto = {
+      id: randomUUID(),
+      source: "github-state",
+      status: "running",
+      startedAt,
+      issueUpserts: 0,
+      sprintUpserts: 0,
+      fieldMappingUpserts: 0,
+      warnings: trigger === "manual" ? [] : [{ code: "SCHEDULED_SYNC", message: `Sync triggered by ${trigger}.`, severity: "info" }]
+    };
+    await this.repositories.createSyncRun(baseRun);
 
-    for (const issue of issues) {
-      this.issues.set(issue.key, issue);
+    try {
+      const state = await this.githubStateClient.fetchState();
+      const normalized = normalizeGitHubState(state, this.defaultProjectKey);
+      const upserts = await this.repositories.upsertCatalog(normalized);
+      const warnings = [...baseRun.warnings, ...normalized.warnings];
+      const completedRun: SyncRunDto = {
+        ...baseRun,
+        ...upserts,
+        status: warnings.some((warning) => warning.severity === "warning") ? "warning" : "success",
+        completedAt: this.now(),
+        warnings
+      };
+      await this.repositories.updateSyncRun(completedRun);
+      return completedRun;
+    } catch (error) {
+      const failedRun: SyncRunDto = {
+        ...baseRun,
+        status: "failed",
+        completedAt: this.now(),
+        warnings: baseRun.warnings,
+        error: error instanceof Error ? error.message : "Unknown sync failure"
+      };
+      await this.repositories.updateSyncRun(failedRun);
+      return failedRun;
     }
+  }
 
-    for (let index = 1; index <= 2; index += 1) {
-      this.sprints.set(`sprint-${index}`, {
-        id: `sprint-${index}`,
-        name: `Closed Sprint ${index}`,
-        state: "closed",
-        projectKey,
-        completeDate: now
-      });
+  private now(): string {
+    return this.clock().toISOString();
+  }
+}
+
+export function createDemoCatalogSeed(defaultProjectKey: string) {
+  const now = new Date().toISOString();
+  const issues: JiraIssueDto[] = [
+    {
+      key: `${defaultProjectKey}-101`,
+      projectKey: defaultProjectKey,
+      summary: "Login akışı ve session guard",
+      description: "Kullanıcı login olur, httpOnly cookie ile session korunur.",
+      issueType: "Story",
+      statusCategory: "Done",
+      statusName: "Done",
+      sprintIds: ["sprint-1"],
+      storyPoints: 5,
+      timeSpentHours: 28,
+      labels: ["auth"],
+      components: ["identity"],
+      updatedAt: now
+    },
+    {
+      key: `${defaultProjectKey}-102`,
+      projectKey: defaultProjectKey,
+      summary: "Backlog verisini normalize et",
+      description: "GitHub state JSON okunur ve Mongo read model upsert edilir.",
+      issueType: "Story",
+      statusCategory: "Done",
+      statusName: "Done",
+      sprintIds: ["sprint-2"],
+      storyPoints: 8,
+      timeSpentHours: 44,
+      labels: ["sync"],
+      components: ["ingestion"],
+      updatedAt: now
+    },
+    {
+      key: `${defaultProjectKey}-201`,
+      projectKey: defaultProjectKey,
+      summary: "Seçilen issue için sizing önerisi göster",
+      description: "Benzer historical issue listesinden story point ve ideal saat öner.",
+      issueType: "Story",
+      statusCategory: "To Do",
+      statusName: "Backlog",
+      sprintIds: [],
+      labels: ["sizing"],
+      components: ["recommendation"],
+      updatedAt: now
     }
+  ];
+
+  const sprints: JiraSprintDto[] = [1, 2].map((index) => ({
+    id: `sprint-${index}`,
+    name: `Closed Sprint ${index}`,
+    state: "closed",
+    projectKey: defaultProjectKey,
+    completeDate: now
+  }));
+
+  return {
+    issues,
+    sprints,
+    fieldMappings: [{ id: `${defaultProjectKey}:storyPoints`, projectKey: defaultProjectKey, fieldKey: "storyPoints", name: "Story Points" }]
+  };
+}
+
+function assignOptional<T extends object, K extends string, V>(target: T, key: K, value: V | undefined): asserts target is T & Record<K, V> {
+  if (value !== undefined) {
+    Object.assign(target, { [key]: value });
   }
 }

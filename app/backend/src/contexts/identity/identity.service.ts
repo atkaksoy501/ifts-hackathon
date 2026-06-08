@@ -1,11 +1,13 @@
 import type { CreateUserRequest, PatchUserRequest, SessionUserDto, UserAccountDto } from "@module1/contracts";
 import bcrypt from "bcryptjs";
-import { randomUUID } from "node:crypto";
 import { ApiError } from "../../shared/http.js";
-
-type UserRecord = UserAccountDto & {
-  passwordHash: string;
-};
+import {
+  InMemoryUserRepository,
+  normalizeUsername,
+  type CreateUserRecordInput,
+  type UserRecord,
+  type UserRepository
+} from "./user.repository.js";
 
 type SeedAdmin = {
   username: string;
@@ -14,18 +16,18 @@ type SeedAdmin = {
 };
 
 export class IdentityService {
-  private readonly users = new Map<string, UserRecord>();
+  constructor(private readonly users: UserRepository = new InMemoryUserRepository()) {}
 
-  static async create(seedAdmin: SeedAdmin) {
-    const service = new IdentityService();
+  static async create(seedAdmin: SeedAdmin, users: UserRepository = new InMemoryUserRepository()) {
+    const service = new IdentityService(users);
     await service.seedAdmin(seedAdmin);
     return service;
   }
 
   async seedAdmin(seed: SeedAdmin) {
-    const existing = [...this.users.values()].find((user) => user.username === seed.username);
+    const existing = await this.users.findByUsername(seed.username);
     if (existing) {
-      return existing;
+      return toAccountDto(existing);
     }
 
     return this.createUser({
@@ -38,64 +40,76 @@ export class IdentityService {
   }
 
   async createUser(input: CreateUserRequest): Promise<UserAccountDto> {
-    this.ensureUniqueUsername(input.username);
+    const username = normalizeInputUsername(input.username);
+    await this.ensureUniqueUsername(username);
 
-    const now = new Date().toISOString();
-    const record: UserRecord = {
-      id: randomUUID(),
-      username: input.username,
+    const createInput: CreateUserRecordInput = {
+      username,
       role: input.role,
       active: input.active ?? true,
-      createdAt: now,
-      updatedAt: now,
       passwordHash: await bcrypt.hash(input.password, 10)
     };
 
     if (input.displayName) {
-      record.displayName = input.displayName;
+      const displayName = normalizeOptionalText(input.displayName);
+      if (displayName) {
+        createInput.displayName = displayName;
+      }
     }
 
-    this.users.set(record.id, record);
-    return toAccountDto(record);
+    return toAccountDto(await this.users.create(createInput));
   }
 
   async patchUser(id: string, input: PatchUserRequest): Promise<UserAccountDto> {
-    const record = this.users.get(id);
+    if (Object.keys(input).length === 0) {
+      throw new ApiError(400, "INVALID_REQUEST", "Patch body cannot be empty.");
+    }
+
+    const record = await this.users.findById(id);
     if (!record) {
       throw new ApiError(404, "NOT_FOUND", "User was not found.");
     }
 
-    if (input.username && input.username !== record.username) {
-      this.ensureUniqueUsername(input.username);
-      record.username = input.username;
+    const patch: Parameters<UserRepository["patch"]>[1] = {};
+
+    if (input.username) {
+      const username = normalizeInputUsername(input.username);
+      if (normalizeUsername(username) !== normalizeUsername(record.username)) {
+        await this.ensureUniqueUsername(username);
+        patch.username = username;
+      }
     }
 
     if (input.password) {
-      record.passwordHash = await bcrypt.hash(input.password, 10);
+      patch.passwordHash = await bcrypt.hash(input.password, 10);
     }
 
     if (input.displayName !== undefined) {
-      record.displayName = input.displayName;
+      patch.displayName = normalizeOptionalText(input.displayName);
     }
 
     if (input.role) {
-      record.role = input.role;
+      patch.role = input.role;
     }
 
     if (input.active !== undefined) {
-      record.active = input.active;
+      patch.active = input.active;
     }
 
-    record.updatedAt = new Date().toISOString();
-    return toAccountDto(record);
+    const updated = await this.users.patch(id, patch);
+    if (!updated) {
+      throw new ApiError(404, "NOT_FOUND", "User was not found.");
+    }
+
+    return toAccountDto(updated);
   }
 
-  listUsers(): UserAccountDto[] {
-    return [...this.users.values()].map(toAccountDto);
+  async listUsers(): Promise<UserAccountDto[]> {
+    return (await this.users.list()).map(toAccountDto);
   }
 
-  getSessionUser(id: string): SessionUserDto {
-    const record = this.users.get(id);
+  async getSessionUser(id: string): Promise<SessionUserDto> {
+    const record = await this.users.findById(id);
     if (!record) {
       throw new ApiError(401, "UNAUTHENTICATED", "Session user was not found.");
     }
@@ -108,7 +122,7 @@ export class IdentityService {
   }
 
   async login(username: string, password: string): Promise<SessionUserDto> {
-    const record = [...this.users.values()].find((user) => user.username === username);
+    const record = await this.users.findByUsername(username);
     if (!record) {
       throw new ApiError(401, "UNAUTHENTICATED", "Invalid username or password.");
     }
@@ -125,8 +139,8 @@ export class IdentityService {
     return toSessionDto(record);
   }
 
-  private ensureUniqueUsername(username: string) {
-    if ([...this.users.values()].some((user) => user.username === username)) {
+  private async ensureUniqueUsername(username: string) {
+    if (await this.users.findByUsername(username)) {
       throw new ApiError(409, "CONFLICT", "Username already exists.");
     }
   }
@@ -153,4 +167,18 @@ function toAccountDto(record: UserRecord): UserAccountDto {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt
   };
+}
+
+function normalizeInputUsername(username: string): string {
+  const normalized = username.trim();
+  if (!normalized) {
+    throw new ApiError(400, "INVALID_REQUEST", "Username cannot be empty.");
+  }
+
+  return normalized;
+}
+
+function normalizeOptionalText(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  return normalized ? normalized : undefined;
 }

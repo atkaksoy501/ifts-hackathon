@@ -6,23 +6,23 @@
 | --- | --- |
 | Product scope | Predictive Sizing + Blockage Advisor for Jira backlog issues. |
 | App scaffold | `app/` created with `shared`, `backend`, `frontend`. |
-| Backend | Express.js + TypeScript app factory, `/healthz`, REST route skeleton, httpOnly JWT cookie path, in-memory DDD services. |
-| Frontend | React/Vite + TypeScript + Tailwind + shadcn-style local UI components + Radix Tabs/Slot. |
-| Shared contracts | `@module1/contracts` DTOs and Zod schemas based on `modul-1-contracts`. |
-| Tests | Vitest unit/integration tests and Playwright e2e smoke test are present. |
-| Docker | Single runtime image scaffold plus `docker-compose.yml` with MongoDB. |
-| Runtime note | Use Node `>=22`; local default Node `v14` is too old for Vite. |
+| Backend | Express.js + TypeScript app with contract-validated routes, httpOnly JWT auth, repository-backed identity/catalog services, Mongo catalog/user repositories, sync scheduler, sizing and blockage recommendation services. |
+| Frontend | React/Vite + TypeScript + Tailwind + TanStack Query delivery dashboard with login, sync, backlog, sizing, blockage, and admin workflows. |
+| Shared contracts | `@module1/contracts` DTOs and Zod schemas for request/query/response contracts. |
+| Tests | Vitest unit/integration, coverage thresholds, and Playwright e2e happy/warning paths pass locally. |
+| Docker | Single runtime image plus `docker-compose.yml` with MongoDB boots API and built frontend. |
+| Runtime note | Use Node `>=22`; local shell used direct `pnpm` because `corepack` was not on PATH. |
 
 ## Verification Snapshot
 
 | Check | Result |
 | --- | --- |
-| Dependency install | `corepack pnpm install` passed. |
-| Build | `corepack pnpm build` passed with bundled Node `v24.14.0`. |
-| Unit/integration tests | `corepack pnpm test` passed: shared 2, backend 5, frontend 2. |
-| Backend dev server | `http://localhost:8080/healthz` returned `{"ok":true,"service":"module1-advisor"}`. |
-| Frontend dev server | `http://localhost:5173/` returned HTTP 200. |
-| E2E smoke | `corepack pnpm --filter @module1/frontend test:e2e` passed: chromium + mobile. |
+| Dependency install | `pnpm install --frozen-lockfile` passed. |
+| Build | `pnpm --filter @module1/contracts build`, `pnpm --filter @module1/backend build`, and `pnpm --filter @module1/frontend build` passed. |
+| Unit/integration tests | `pnpm -r test` passed: shared 5, backend 28, frontend 7. |
+| Coverage | `pnpm -r coverage` passed with configured thresholds. |
+| Docker compose | `docker compose up --build -d` passed; `http://127.0.0.1:8080/healthz` returned `{"ok":true,"service":"module1-advisor"}` and `/` returned HTTP 200. |
+| E2E smoke | `pnpm --filter @module1/frontend test:e2e` passed: chromium + mobile, 4 tests. |
 
 ## Task Granularity Rule
 
@@ -50,63 +50,63 @@ One task should create one testable edit set for one owner. Keep TDD order: fail
 
 ### P1 - Shared Contracts
 
-- [ ] API-002 Add request/response schemas for every admin, sync, backlog, sprint, sizing, and blockage route.
-- [ ] API-003 Add contract tests that verify route responses never leak persistence/internal shapes.
-- [ ] API-004 Add generated frontend API types or import policy so DTO drift is caught in CI.
+- [x] API-002 Add request/response schemas for every admin, sync, backlog, sprint, sizing, and blockage route.
+- [x] API-003 Add contract tests that verify route responses never leak persistence/internal shapes.
+- [x] API-004 Add generated frontend API types or import policy so DTO drift is caught in CI.
 
 ### P1 - Express Backend Foundation
 
-- [ ] BE-002 Replace in-memory service wiring with dependency container interfaces and test fixtures.
-- [ ] BE-003 Add MongoDB connection lifecycle, indexes, health details, and graceful shutdown tests.
-- [ ] BE-004 Add centralized validation helpers, correlation IDs, and `ErrorEnvelope` integration tests.
-- [ ] BE-005 Add startup sync scheduler shell with disabled/test mode and deterministic clock.
+- [x] BE-002 Replace in-memory service wiring with dependency container interfaces and test fixtures.
+- [x] BE-003 Add MongoDB connection lifecycle, indexes, health details, and graceful shutdown tests.
+- [x] BE-004 Add centralized validation helpers, correlation IDs, and `ErrorEnvelope` integration tests.
+- [x] BE-005 Add startup sync scheduler shell with disabled/test mode and deterministic clock.
 
 ### P1 - Identity and Access
 
-- [ ] AUTH-001 Add failing unit tests for password hash, JWT claims, roles, disabled users.
-- [ ] AUTH-002 Implement Mongo `users` repository and idempotent admin seed.
-- [ ] AUTH-003 Add integration tests for login, logout, me, and admin user CRUD.
-- [ ] AUTH-004 Harden cookie flags, role guard, duplicate username, empty patch, and disabled login paths.
+- [x] AUTH-001 Add failing unit tests for password hash, JWT claims, roles, disabled users.
+- [x] AUTH-002 Implement Mongo `users` repository and idempotent admin seed.
+- [x] AUTH-003 Add integration tests for login, logout, me, and admin user CRUD.
+- [x] AUTH-004 Harden cookie flags, role guard, duplicate username, empty patch, and disabled login paths.
 
 ### P1 - Work Item Ingestion and Catalog
 
-- [ ] ING-001 Add failing tests for GitHub state fetch, parse, normalization, warnings, and stable upsert.
-- [ ] ING-002 Implement GitHub state client and Mongo repositories for issues, sprints, field mappings, sync runs.
-- [ ] ING-003 Implement startup, interval, and manual sync with run records and old-data preservation.
-- [ ] ING-004 Add integration tests for sync status, manual sync, backlog filters, sprint history warnings.
-- [ ] ING-005 Wire real query endpoints to Mongo read models and remove scaffold seed data from production mode.
+- [x] ING-001 Add failing tests for GitHub state fetch, parse, normalization, warnings, and stable upsert.
+- [x] ING-002 Implement GitHub state client and Mongo repositories for issues, sprints, field mappings, sync runs.
+- [x] ING-003 Implement startup, interval, and manual sync with run records and old-data preservation.
+- [x] ING-004 Add integration tests for sync status, manual sync, backlog filters, sprint history warnings.
+- [x] ING-005 Wire real query endpoints to Mongo read models and remove scaffold seed data from production mode.
 
 ### P1 - Predictive Sizing
 
-- [ ] SIZE-001 Expand failing unit tests for tokenizer, similarity weighting, target exclusion, and sparse data.
-- [ ] SIZE-002 Replace starter similarity with TF-IDF/keyword hybrid engine and deterministic fixtures.
-- [ ] SIZE-003 Implement confidence breakdown, story point estimate, ideal hour fallback, and warning policies.
-- [ ] SIZE-004 Persist sizing recommendations and add `POST /api/sizing/recommend` integration tests.
+- [x] SIZE-001 Expand failing unit tests for tokenizer, similarity weighting, target exclusion, and sparse data.
+- [x] SIZE-002 Replace starter similarity with TF-IDF/keyword hybrid engine and deterministic fixtures.
+- [x] SIZE-003 Implement confidence breakdown, story point estimate, ideal hour fallback, and warning policies.
+- [x] SIZE-004 Persist sizing recommendations and add `POST /api/sizing/recommend` integration tests.
 
 ### P1 - Blockage Advisory
 
-- [ ] BLK-001 Add failing unit tests for active pattern invariants, evidence strength, low-confidence paths.
-- [ ] BLK-002 Implement Mongo `blockage_patterns` repository and recommendation persistence.
-- [ ] BLK-003 Implement admin KB CRUD integration tests and route behavior.
-- [ ] BLK-004 Expand recommendation service to combine issue text, components, local KB, and Jira examples.
+- [x] BLK-001 Add failing unit tests for active pattern invariants, evidence strength, low-confidence paths.
+- [x] BLK-002 Implement Mongo `blockage_patterns` repository and recommendation persistence.
+- [x] BLK-003 Implement admin KB CRUD integration tests and route behavior.
+- [x] BLK-004 Expand recommendation service to combine issue text, components, local KB, and Jira examples.
 
 ### P2 - Delivery Experience Frontend
 
-- [ ] UI-001 Replace mock data with TanStack Query API calls and session bootstrap.
-- [ ] UI-002 Implement real login/logout, route guards, admin-only views, and disabled user state.
-- [ ] UI-003 Implement sync health, manual sync, backlog filters, sprint warning, empty-state flows.
-- [ ] UI-004 Implement sizing result, confidence breakdown, similar issues table, warning/rationale states.
-- [ ] UI-005 Implement blockage advisor input, issue-backed recommendation, evidence/actions states.
-- [ ] UI-006 Implement admin users and admin blockage KB forms with validation/error handling tests.
+- [x] UI-001 Replace mock data with TanStack Query API calls and session bootstrap.
+- [x] UI-002 Implement real login/logout, route guards, admin-only views, and disabled user state.
+- [x] UI-003 Implement sync health, manual sync, backlog filters, sprint warning, empty-state flows.
+- [x] UI-004 Implement sizing result, confidence breakdown, similar issues table, warning/rationale states.
+- [x] UI-005 Implement blockage advisor input, issue-backed recommendation, evidence/actions states.
+- [x] UI-006 Implement admin users and admin blockage KB forms with validation/error handling tests.
 
 ### P2 - E2E, Quality, Docker, Docs
 
-- [ ] E2E-001 Add seed fixtures for admin, backlog, historical issues, and blockage patterns.
-- [ ] E2E-002 Add e2e login -> backlog -> sizing -> blockage happy path against running backend.
-- [ ] E2E-003 Add e2e admin manual sync and warning/empty-state path.
-- [ ] DOCKER-001 Verify Docker image boots API + built frontend and reaches Mongo through compose.
-- [ ] QG-001 Add coverage thresholds, Sonar quality settings, Semgrep notes, and CI build/test commands.
-- [ ] DOC-001 Update runbook for Node version, pnpm, Docker, env, publisher, ingest, verify.
+- [x] E2E-001 Add seed fixtures for admin, backlog, historical issues, and blockage patterns.
+- [x] E2E-002 Add e2e login -> backlog -> sizing -> blockage happy path against running backend.
+- [x] E2E-003 Add e2e admin manual sync and warning/empty-state path.
+- [x] DOCKER-001 Verify Docker image boots API + built frontend and reaches Mongo through compose.
+- [x] QG-001 Add coverage thresholds, Sonar quality settings, Semgrep notes, and CI build/test commands.
+- [x] DOC-001 Update runbook for Node version, pnpm, Docker, env, publisher, ingest, verify.
 
 ## Parallel Agent Plan
 
@@ -124,18 +124,23 @@ One task should create one testable edit set for one owner. Keep TDD order: fail
 
 | Tool | Command | Blocks release |
 | --- | --- | --- |
-| Build | `corepack pnpm build` | Yes |
-| Unit/integration | `corepack pnpm test` | Yes |
-| E2E smoke | `corepack pnpm --filter @module1/frontend test:e2e` | Yes |
-| Coverage | `corepack pnpm coverage` | Yes |
-| Docker | `corepack pnpm docker:up` | Yes |
+| Build | `pnpm build` | Yes |
+| Unit/integration | `pnpm test` | Yes |
+| E2E smoke | `pnpm --filter @module1/frontend test:e2e` | Yes |
+| Coverage | `pnpm coverage` | Yes |
+| Docker | `pnpm docker:up` | Yes |
 | Sonar/Semgrep | CI plus local configured scan | Yes |
 
 ## Verification
 
-- Task count: 48 total, 9 completed, 39 remaining.
+- Task count: 48 total, 45 completed, 3 external decisions remaining.
 - Scaffold path: `app/`.
 - Backend framework: Express.js.
 - Frontend framework: React/Vite/Tailwind with shadcn-style local components.
 - Test coverage lanes: unit, integration, e2e present.
 - Quality lanes: build, coverage, Docker, Sonar, Semgrep present.
+- 2026-06-08 final verification:
+  - `pnpm -r test` passed: shared 5, backend 28, frontend 7.
+  - `pnpm -r coverage` passed with thresholds.
+  - `pnpm --filter @module1/frontend test:e2e` passed: chromium + mobile, 4 tests.
+  - `docker compose up --build -d` passed; health and built frontend probes passed on port 8080.
