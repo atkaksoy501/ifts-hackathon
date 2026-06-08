@@ -13,11 +13,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8080),
   FRONTEND_ORIGIN: z.string().default("http://localhost:5173"),
   FRONTEND_DIST: z.string().default("../frontend/dist"),
-  MONGO_URI: z
-    .string()
-    .default(
-      "mongodb://hackathon:hackathon123@192.168.0.50:27017/hackathon?authSource=hackathon&authMechanism=SCRAM-SHA-256"
-    ),
+  MONGO_URI: z.string().optional(),
   MONGO_DB_NAME: z.string().default("hackathon"),
   JWT_SECRET: z.string().min(8).default("dev-secret-change-me"),
   JWT_COOKIE_NAME: z.string().default("module1_session"),
@@ -26,7 +22,7 @@ const envSchema = z.object({
   ADMIN_DISPLAY_NAME: z.string().default("Admin"),
   GITHUB_STATE_URL: z.string().url().default("https://raw.githubusercontent.com/example/jira-live/main/state.json"),
   GITHUB_STATE_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
-  CATALOG_STORE: z.enum(["memory", "mongo"]).default("mongo"),
+  CATALOG_STORE: z.enum(["memory", "mongo"]).default("memory"),
   SYNC_DISABLED: booleanEnvSchema.default(false),
   SYNC_STARTUP_ENABLED: booleanEnvSchema.default(true),
   SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(300000),

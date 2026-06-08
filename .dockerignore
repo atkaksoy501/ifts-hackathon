@@ -1,0 +1,14 @@
+.git
+.github
+.codesight
+node_modules
+app/node_modules
+**/node_modules
+app/**/dist
+app/**/coverage
+**/coverage
+**/.env
+**/.env.*
+!.env.example
+npm-debug.log
+.scannerwork
