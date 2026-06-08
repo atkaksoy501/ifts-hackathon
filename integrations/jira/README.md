@@ -154,6 +154,21 @@ Manuel calistirma:
 gh workflow run jira-smoke.yml -R atkaksoy501/ifts-hackathon -f max_results=3
 ```
 
+## Live UI Bridge
+
+Mac mini ile sirket PC birbirini network uzerinden goremiyorsa live Jira guncellemeleri icin GitHub-backed bridge kullanin:
+
+```text
+Sirket PC -> Jira REST -> GitHub jira-live/state.json
+Mac mini -> GitHub state -> MongoDB -> UI
+```
+
+Detayli kurulum:
+
+```text
+integrations/jira/live_bridge/README.md
+```
+
 ## Hazirlik Kontrol Listesi
 
 - Token scope'u en azindan `serverInfo`, `myself`, `search` ve hedef proje okuma yetkisini kapsiyor.
