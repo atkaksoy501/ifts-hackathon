@@ -18,6 +18,9 @@ jobs:
       - self-hosted
       - macOS
       - ARM64
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'http://localhost:9000' }}
 
     steps:
       - name: Check out repository
@@ -74,11 +77,8 @@ jobs:
         run: pnpm coverage
 
       - name: Run SonarQube analysis
-        if: ${{ secrets.SONAR_TOKEN != '' }}
+        if: ${{ env.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarqube-scan-action@v6
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'http://localhost:9000' }}
         with:
           args: >
             -Dsonar.projectKey=${{ github.event.repository.name }}
