@@ -5,3 +5,29 @@
   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.56.1:[1m5173[22m/[39m
   [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.0.52:[1m5173[22m/[39m
   [32m➜[39m  [1mNetwork[22m: [36mhttp://10.77.38.129:[1m5173[22m/[39m
+[2m4:13:21 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/features/delivery/DeliveryDashboard.test.tsx[22m
+[2m4:13:21 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/shared/api/client.test.ts[22m
+[2m4:13:21 PM[22m [36m[1m[vite][22m[39m [32mvite.config.ts changed, restarting server...[39m
+[2m4:13:21 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/delivery/DeliveryDashboard.tsx, /src/app/globals.css[22m
+[2m4:13:21 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/shared/api/client.ts[22m
+[2m4:13:21 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/app/globals.css, /src/features/delivery/DeliveryDashboard.tsx[22m
+[2m4:13:21 PM[22m [36m[1m[vite][22m[39m server restarted.
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.56.1:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.0.52:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://10.77.40.0:[1m5173[22m/[39m
+[2m4:13:23 PM[22m [36m[1m[vite][22m[39m [32m✨ new dependencies optimized: [33mzod[32m[39m
+[2m4:13:23 PM[22m [36m[1m[vite][22m[39m [32m✨ optimized dependencies changed. reloading[39m
+[2m4:23:07 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/delivery/DeliveryDashboard.tsx, /src/app/globals.css[22m
+[2m4:23:26 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/delivery/DeliveryDashboard.tsx, /src/app/globals.css[22m
+[2m4:24:14 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/delivery/DeliveryDashboard.tsx, /src/app/globals.css[22m
+[2m4:24:24 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/delivery/DeliveryDashboard.tsx, /src/app/globals.css[22m
+[2m4:25:47 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/delivery/DeliveryDashboard.tsx, /src/app/globals.css[22m
+[2m4:26:29 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/delivery/DeliveryDashboard.tsx, /src/app/globals.css[22m
+[2m4:31:14 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/delivery/DeliveryDashboard.tsx, /src/app/globals.css[22m
+[2m4:41:44 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/delivery/DeliveryDashboard.tsx, /src/app/globals.css[22m
+[2m4:41:44 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/delivery/DeliveryDashboard.tsx, /src/app/globals.css[22m
+[2m4:42:04 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/delivery/DeliveryDashboard.tsx, /src/app/globals.css[22m
+[2m4:42:04 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/features/delivery/DeliveryDashboard.tsx, /src/app/globals.css[22m
+[2m4:42:04 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/features/delivery/DeliveryDashboard.test.tsx[22m
