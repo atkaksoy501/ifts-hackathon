@@ -99,7 +99,16 @@ describe("DeliveryDashboard", () => {
 
     renderWithQuery(<DeliveryDashboard />);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Giriş" }));
+    const usernameInput = (await screen.findByLabelText("Kullanıcı adı")) as HTMLInputElement;
+    const passwordInput = screen.getByLabelText("Şifre") as HTMLInputElement;
+
+    expect(usernameInput.value).toBe("");
+    expect(passwordInput.value).toBe("");
+    expect(screen.queryByText("Oturum yok veya kullanıcı bilgileri hatalı.")).not.toBeInTheDocument();
+
+    await userEvent.type(usernameInput, "admin");
+    await userEvent.type(passwordInput, "admin12345");
+    await userEvent.click(screen.getByRole("button", { name: "Giriş" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/auth/login", expect.objectContaining({ method: "POST" })));
   });
