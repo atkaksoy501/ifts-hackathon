@@ -315,6 +315,166 @@ export const blockagePatternResponseSchema = z.object({
 
 export type BlockagePatternResponse = z.infer<typeof blockagePatternResponseSchema>;
 
+export const engineeringDomainSchema = z.enum([
+  "frontend",
+  "backend",
+  "database",
+  "qa",
+  "integration",
+  "devops",
+  "security",
+  "ux",
+  "docs",
+  "data-ai",
+  "other"
+]);
+
+export type EngineeringDomain = z.infer<typeof engineeringDomainSchema>;
+
+export const riskLevelSchema = z.enum(["low", "medium", "high"]);
+export type RiskLevel = z.infer<typeof riskLevelSchema>;
+
+export const providerNameSchema = z.enum(["heuristic", "openrouter"]);
+export type ProviderName = z.infer<typeof providerNameSchema>;
+
+export const sourceTypeSchema = z.enum(["manual", "jira-issue"]);
+export type SourceType = z.infer<typeof sourceTypeSchema>;
+
+export const planningInputSourceSnapshotSchema = z.object({
+  sourceType: sourceTypeSchema,
+  manual: z
+    .object({
+      title: z.string(),
+      description: z.string()
+    })
+    .optional(),
+  jiraIssue: jiraIssueSchema.optional(),
+  capturedAt: z.string()
+});
+
+export type PlanningInputSourceSnapshotDto = z.infer<typeof planningInputSourceSnapshotSchema>;
+
+export const planningInputSchema = z.object({
+  id: z.string(),
+  sourceType: sourceTypeSchema,
+  issueKey: z.string().optional(),
+  projectKey: z.string().optional(),
+  title: z.string(),
+  description: z.string(),
+  acceptanceCriteria: z.array(z.string()),
+  constraints: z.array(z.string()),
+  tags: z.array(z.string()),
+  sourceSnapshot: planningInputSourceSnapshotSchema,
+  warnings: z.array(warningSchema),
+  createdBy: z.string(),
+  createdAt: z.string()
+});
+
+export type PlanningInputDto = z.infer<typeof planningInputSchema>;
+
+export const requiredSkillSchema = z.object({
+  key: z.string(),
+  minLevel: z.number(),
+  weight: z.number()
+});
+
+export type RequiredSkillDto = z.infer<typeof requiredSkillSchema>;
+
+export const technicalSubTaskSchema = z.object({
+  id: z.string(),
+  domain: engineeringDomainSchema,
+  title: z.string(),
+  description: z.string(),
+  deliverables: z.array(z.string()),
+  acceptanceChecks: z.array(z.string()),
+  requiredSkills: z.array(requiredSkillSchema),
+  dependencies: z.array(z.string()),
+  estimateHours: z.number().positive(),
+  risk: riskLevelSchema,
+  confidence: z.number().min(0).max(1),
+  rationale: z.string()
+});
+
+export type TechnicalSubTaskDto = z.infer<typeof technicalSubTaskSchema>;
+
+export const decompositionRunSchema = z.object({
+  id: z.string(),
+  inputId: z.string(),
+  provider: providerNameSchema,
+  promptVersion: z.string(),
+  subTasks: z.array(technicalSubTaskSchema),
+  warnings: z.array(warningSchema),
+  createdAt: z.string()
+});
+
+export type DecompositionRunDto = z.infer<typeof decompositionRunSchema>;
+
+export const createManualPlanningInputRequestSchema = z.object({
+  sourceType: z.literal("manual"),
+  title: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  projectKey: z.string().optional(),
+  acceptanceCriteria: z.array(z.string()).optional(),
+  constraints: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional()
+});
+
+export type CreateManualPlanningInputRequest = z.infer<typeof createManualPlanningInputRequestSchema>;
+
+export const createJiraPlanningInputRequestSchema = z.object({
+  sourceType: z.literal("jira-issue"),
+  issueKey: z.string().trim().min(1),
+  projectKey: z.string().optional(),
+  acceptanceCriteria: z.array(z.string()).optional(),
+  constraints: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional()
+});
+
+export type CreateJiraPlanningInputRequest = z.infer<typeof createJiraPlanningInputRequestSchema>;
+
+export const createPlanningInputRequestSchema = z.discriminatedUnion("sourceType", [
+  createManualPlanningInputRequestSchema,
+  createJiraPlanningInputRequestSchema
+]);
+
+export type CreatePlanningInputRequest = z.infer<typeof createPlanningInputRequestSchema>;
+
+export const runDecompositionRequestSchema = z
+  .object({
+    inputId: z.string().min(1).optional(),
+    input: createPlanningInputRequestSchema.optional(),
+    provider: providerNameSchema.optional()
+  })
+  .refine((value) => Number(value.inputId !== undefined) + Number(value.input !== undefined) === 1, {
+    message: "Exactly one of inputId or input is required"
+  });
+
+export type RunDecompositionRequest = z.infer<typeof runDecompositionRequestSchema>;
+
+export const createPlanningInputResponseSchema = z.object({
+  planningInput: planningInputSchema
+});
+
+export type CreatePlanningInputResponse = z.infer<typeof createPlanningInputResponseSchema>;
+
+export const getPlanningInputResponseSchema = z.object({
+  planningInput: planningInputSchema
+});
+
+export type GetPlanningInputResponse = z.infer<typeof getPlanningInputResponseSchema>;
+
+export const runDecompositionResponseSchema = z.object({
+  decompositionRun: decompositionRunSchema
+});
+
+export type RunDecompositionResponse = z.infer<typeof runDecompositionResponseSchema>;
+
+export const getDecompositionResponseSchema = z.object({
+  decompositionRun: decompositionRunSchema
+});
+
+export type GetDecompositionResponse = z.infer<typeof getDecompositionResponseSchema>;
+
 export type ErrorEnvelope = {
   error: {
     code:

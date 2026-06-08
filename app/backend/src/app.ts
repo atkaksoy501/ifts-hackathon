@@ -26,6 +26,14 @@ import { MongoCatalogRepositories } from "./contexts/ingestion/mongo.repositorie
 import { InMemoryCatalogRepositories, type CatalogRepositories } from "./contexts/ingestion/repositories.js";
 import { SyncScheduler } from "./contexts/ingestion/sync.scheduler.js";
 import { SizingEngine } from "./contexts/predictive-sizing/sizing.engine.js";
+import { DecompositionService } from "./contexts/task-planning/decomposition.service.js";
+import { PlanningInputService } from "./contexts/task-planning/planning.service.js";
+import {
+  InMemoryDecompositionRunRepository,
+  InMemoryPlanningInputRepository,
+  type DecompositionRunRepository,
+  type PlanningInputRepository
+} from "./contexts/task-planning/repositories.js";
 import { createApiRouter } from "./routes.js";
 import { loadConfig, type AppConfig } from "./shared/config.js";
 import { correlationIdMiddleware, errorHandler } from "./shared/http.js";
@@ -36,6 +44,8 @@ type CreateAppOptions = {
   userRepository?: UserRepository;
   blockagePatternRepository?: BlockagePatternRepository;
   blockageRecommendationRepository?: BlockageRecommendationRepository;
+  planningInputRepository?: PlanningInputRepository;
+  decompositionRunRepository?: DecompositionRunRepository;
 };
 
 export async function createApp(config: AppConfig = loadConfig(), options: CreateAppOptions = {}) {
@@ -87,6 +97,12 @@ export async function createApp(config: AppConfig = loadConfig(), options: Creat
   await Promise.all([blockagePatternRepository.ensureReady?.(), blockageRecommendationRepository.ensureReady?.()]);
   app.locals.blockagePatternRepository = blockagePatternRepository;
   app.locals.blockageRecommendationRepository = blockageRecommendationRepository;
+  const planningInputRepository = options.planningInputRepository ?? new InMemoryPlanningInputRepository();
+  const decompositionRunRepository = options.decompositionRunRepository ?? new InMemoryDecompositionRunRepository();
+  const planningInputs = new PlanningInputService(planningInputRepository, catalog);
+  const decompositions = new DecompositionService(planningInputs, decompositionRunRepository);
+  app.locals.planningInputRepository = planningInputRepository;
+  app.locals.decompositionRunRepository = decompositionRunRepository;
 
   app.use(
     "/api",
@@ -94,7 +110,9 @@ export async function createApp(config: AppConfig = loadConfig(), options: Creat
       identity,
       catalog,
       sizing: new SizingEngine({ hoursPerStoryPoint: config.HOURS_PER_STORY_POINT }),
-      blockage: new BlockageService(blockagePatternRepository, blockageRecommendationRepository)
+      blockage: new BlockageService(blockagePatternRepository, blockageRecommendationRepository),
+      planningInputs,
+      decompositions
     })
   );
 

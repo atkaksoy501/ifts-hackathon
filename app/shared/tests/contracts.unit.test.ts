@@ -10,18 +10,27 @@ import {
   blockageRecommendRequestSchema,
   blockageRecommendResponseSchema,
   createBlockagePatternRequestSchema,
+  createPlanningInputRequestSchema,
+  createPlanningInputResponseSchema,
   createUserRequestSchema,
+  decompositionRunSchema,
+  getDecompositionResponseSchema,
+  getPlanningInputResponseSchema,
   healthResponseSchema,
   loginRequestSchema,
   patchBlockagePatternRequestSchema,
   patchUserRequestSchema,
+  planningInputSchema,
+  runDecompositionRequestSchema,
+  runDecompositionResponseSchema,
   sizingRecommendRequestSchema,
   sizingRecommendResponseSchema,
   sprintHistoryQuerySchema,
   sprintHistoryResponseSchema,
   syncRunResponseSchema,
   syncStatusResponseSchema,
-  sizingRecommendationSchema
+  sizingRecommendationSchema,
+  technicalSubTaskSchema
 } from "../src/index.js";
 
 describe("contracts", () => {
@@ -50,6 +59,112 @@ describe("contracts", () => {
   it("requires issue key or input text for blockage requests", () => {
     expect(blockageRecommendRequestSchema.safeParse({}).success).toBe(false);
     expect(blockageRecommendRequestSchema.safeParse({ inputText: "blocked by dependency" }).success).toBe(true);
+  });
+
+  it("discriminates manual and Jira planning input requests", () => {
+    expect(
+      createPlanningInputRequestSchema.safeParse({
+        sourceType: "manual",
+        title: "Build allocation view",
+        description: "Show decomposed tasks and suggested owners."
+      }).success
+    ).toBe(true);
+    expect(
+      createPlanningInputRequestSchema.safeParse({
+        sourceType: "jira-issue",
+        issueKey: "ICTFT-202"
+      }).success
+    ).toBe(true);
+    expect(
+      createPlanningInputRequestSchema.safeParse({
+        sourceType: "manual",
+        issueKey: "ICTFT-202"
+      }).success
+    ).toBe(false);
+    expect(
+      createPlanningInputRequestSchema.safeParse({
+        sourceType: "jira-issue",
+        title: "Build allocation view",
+        description: "Show decomposed tasks."
+      }).success
+    ).toBe(false);
+  });
+
+  it("requires exactly one decomposition input source", () => {
+    expect(runDecompositionRequestSchema.safeParse({ inputId: "input-1" }).success).toBe(true);
+    expect(
+      runDecompositionRequestSchema.safeParse({
+        input: {
+          sourceType: "manual",
+          title: "Build allocation view",
+          description: "Show decomposed tasks and suggested owners."
+        },
+        provider: "openrouter"
+      }).success
+    ).toBe(true);
+    expect(runDecompositionRequestSchema.safeParse({}).success).toBe(false);
+    expect(
+      runDecompositionRequestSchema.safeParse({
+        inputId: "input-1",
+        input: {
+          sourceType: "jira-issue",
+          issueKey: "ICTFT-202"
+        }
+      }).success
+    ).toBe(false);
+  });
+
+  it("validates Module 2 planning and decomposition DTO invariants", () => {
+    const now = new Date().toISOString();
+    const planningInput = {
+      id: "input-1",
+      sourceType: "manual",
+      title: "Build allocation view",
+      description: "Show decomposed tasks and suggested owners.",
+      acceptanceCriteria: ["Recommendations are visible."],
+      constraints: [],
+      tags: ["module-2"],
+      sourceSnapshot: {
+        sourceType: "manual",
+        manual: {
+          title: "Build allocation view",
+          description: "Show decomposed tasks and suggested owners."
+        },
+        capturedAt: now
+      },
+      warnings: [],
+      createdBy: "u-1",
+      createdAt: now
+    };
+    const subTask = {
+      id: "task-1",
+      domain: "frontend",
+      title: "Render recommendations",
+      description: "Display task owners and fit reasons.",
+      deliverables: ["Recommendation table"],
+      acceptanceChecks: ["Primary owner and alternatives are visible."],
+      requiredSkills: [{ key: "react", minLevel: 3, weight: 1 }],
+      dependencies: [],
+      estimateHours: 8,
+      risk: "medium",
+      confidence: 0.85,
+      rationale: "The work is isolated to the allocation screen."
+    };
+    const decompositionRun = {
+      id: "run-1",
+      inputId: "input-1",
+      provider: "heuristic",
+      promptVersion: "v1",
+      subTasks: [subTask],
+      warnings: [],
+      createdAt: now
+    };
+
+    expect(planningInputSchema.safeParse(planningInput).success).toBe(true);
+    expect(technicalSubTaskSchema.safeParse(subTask).success).toBe(true);
+    expect(decompositionRunSchema.safeParse(decompositionRun).success).toBe(true);
+    expect(technicalSubTaskSchema.safeParse({ ...subTask, estimateHours: 0 }).success).toBe(false);
+    expect(technicalSubTaskSchema.safeParse({ ...subTask, confidence: 1.01 }).success).toBe(false);
   });
 
   it("defines request schemas for every mutating API route", () => {
@@ -148,5 +263,70 @@ describe("contracts", () => {
     expect(blockageRecommendResponseSchema.safeParse(blockage).success).toBe(true);
     expect(blockagePatternsResponseSchema.safeParse({ patterns: [pattern] }).success).toBe(true);
     expect(blockagePatternResponseSchema.safeParse({ pattern }).success).toBe(true);
+  });
+
+  it("defines Module 2 planning and decomposition response schemas", () => {
+    const now = new Date().toISOString();
+    const planningInput = {
+      id: "input-1",
+      sourceType: "jira-issue",
+      issueKey: "ICTFT-202",
+      projectKey: "ICTFT",
+      title: "Build allocation view",
+      description: "Show decomposed tasks and suggested owners.",
+      acceptanceCriteria: [],
+      constraints: [],
+      tags: [],
+      sourceSnapshot: {
+        sourceType: "jira-issue",
+        jiraIssue: {
+          key: "ICTFT-202",
+          projectKey: "ICTFT",
+          summary: "Build allocation view",
+          sprintIds: [],
+          labels: [],
+          components: []
+        },
+        capturedAt: now
+      },
+      warnings: [
+        {
+          code: "MISSING_ACCEPTANCE_CRITERIA",
+          message: "Acceptance criteria are missing.",
+          severity: "warning"
+        }
+      ],
+      createdBy: "u-1",
+      createdAt: now
+    };
+    const decompositionRun = {
+      id: "run-1",
+      inputId: "input-1",
+      provider: "heuristic",
+      promptVersion: "v1",
+      subTasks: [
+        {
+          id: "task-1",
+          domain: "frontend",
+          title: "Render recommendations",
+          description: "Display task owners and fit reasons.",
+          deliverables: ["Recommendation table"],
+          acceptanceChecks: ["Primary owner and alternatives are visible."],
+          requiredSkills: [{ key: "react", minLevel: 3, weight: 1 }],
+          dependencies: [],
+          estimateHours: 8,
+          risk: "medium",
+          confidence: 0.85,
+          rationale: "The work is isolated to the allocation screen."
+        }
+      ],
+      warnings: [],
+      createdAt: now
+    };
+
+    expect(createPlanningInputResponseSchema.safeParse({ planningInput }).success).toBe(true);
+    expect(getPlanningInputResponseSchema.safeParse({ planningInput }).success).toBe(true);
+    expect(runDecompositionResponseSchema.safeParse({ decompositionRun }).success).toBe(true);
+    expect(getDecompositionResponseSchema.safeParse({ decompositionRun }).success).toBe(true);
   });
 });

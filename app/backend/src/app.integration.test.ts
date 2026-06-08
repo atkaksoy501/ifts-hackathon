@@ -235,6 +235,57 @@ describe("api", () => {
     const backlog = await request(app).get("/api/backlog?projectKey=ICTFT").set("Cookie", cookie);
     expect(backlog.body.issues.map((issue: { key: string }) => issue.key)).toContain("ICTFT-201");
   });
+
+  it("creates and retrieves a stable manual planning input and decomposition", async () => {
+    const app = await createApp(config);
+    const cookie = await loginCookie(app);
+
+    const created = await request(app)
+      .post("/api/planning-inputs")
+      .set("Cookie", cookie)
+      .send({
+        sourceType: "manual",
+        title: "Delivery planning",
+        description: "Build React dashboard, Express API, MongoDB repository, and automated tests.",
+        acceptanceCriteria: ["Authenticated users can create a plan."]
+      });
+    expect(created.status).toBe(201);
+    expect(created.body.planningInput.createdBy).toBeDefined();
+
+    const decomposed = await request(app)
+      .post("/api/decompositions/run")
+      .set("Cookie", cookie)
+      .send({ inputId: created.body.planningInput.id });
+    expect(decomposed.status).toBe(201);
+    expect(decomposed.body.decompositionRun.subTasks.length).toBeGreaterThan(1);
+
+    const fetched = await request(app)
+      .get(`/api/decompositions/${decomposed.body.decompositionRun.id}`)
+      .set("Cookie", cookie);
+    expect(fetched.status).toBe(200);
+    expect(fetched.body).toEqual(decomposed.body);
+  });
+
+  it("creates planning input from mocked Module 1 catalog and enforces auth", async () => {
+    const app = await createApp(config);
+    const unauthenticated = await request(app).post("/api/planning-inputs").send({
+      sourceType: "jira-issue",
+      issueKey: "ICTFT-201"
+    });
+    expect(unauthenticated.status).toBe(401);
+
+    const cookie = await loginCookie(app);
+    const created = await request(app)
+      .post("/api/planning-inputs")
+      .set("Cookie", cookie)
+      .send({ sourceType: "jira-issue", issueKey: "ICTFT-201" });
+
+    expect(created.status).toBe(201);
+    expect(created.body.planningInput.sourceSnapshot.jiraIssue.key).toBe("ICTFT-201");
+    expect(created.body.planningInput.warnings).toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "MISSING_ACCEPTANCE_CRITERIA" })])
+    );
+  });
 });
 
 async function loginCookie(app: Awaited<ReturnType<typeof createApp>>): Promise<string[]> {

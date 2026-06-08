@@ -9,11 +9,17 @@ import {
   blockageRecommendResponseSchema,
   blockageRecommendRequestSchema,
   createBlockagePatternRequestSchema,
+  createPlanningInputRequestSchema,
+  createPlanningInputResponseSchema,
   createUserRequestSchema,
   loginRequestSchema,
   pathIdParamsSchema,
   patchBlockagePatternRequestSchema,
   patchUserRequestSchema,
+  getDecompositionResponseSchema,
+  getPlanningInputResponseSchema,
+  runDecompositionResponseSchema,
+  runDecompositionRequestSchema,
   sizingRecommendRequestSchema,
   sizingRecommendResponseSchema,
   sprintHistoryQuerySchema,
@@ -31,12 +37,16 @@ import type { IdentityService } from "./contexts/identity/identity.service.js";
 import type { CatalogService } from "./contexts/ingestion/catalog.service.js";
 import type { SizingEngine } from "./contexts/predictive-sizing/sizing.engine.js";
 import type { BlockageService } from "./contexts/blockage-advisory/blockage.service.js";
+import type { DecompositionService } from "./contexts/task-planning/decomposition.service.js";
+import type { PlanningInputService } from "./contexts/task-planning/planning.service.js";
 
 type Services = {
   identity: IdentityService;
   catalog: CatalogService;
   sizing: SizingEngine;
   blockage: BlockageService;
+  planningInputs: PlanningInputService;
+  decompositions: DecompositionService;
 };
 
 export function createApiRouter(config: AppConfig, services: Services) {
@@ -149,6 +159,44 @@ export function createApiRouter(config: AppConfig, services: Services) {
       const query = sprintHistoryQuerySchema.parse(request.query);
       const projectKey = query.projectKey ?? config.DEFAULT_PROJECT_KEY;
       json(response, sprintHistoryResponseSchema, await services.catalog.listClosedSprints(projectKey, query.limit));
+    })
+  );
+
+  router.post(
+    "/planning-inputs",
+    requireSession,
+    asyncHandler(async (request, response) => {
+      const body = createPlanningInputRequestSchema.parse(request.body);
+      const planningInput = await services.planningInputs.create(body, sessionUser(response).id);
+      json(response.status(201), createPlanningInputResponseSchema, { planningInput });
+    })
+  );
+
+  router.get(
+    "/planning-inputs/:id",
+    requireSession,
+    asyncHandler(async (request, response) => {
+      const params = pathIdParamsSchema.parse(request.params);
+      json(response, getPlanningInputResponseSchema, { planningInput: await services.planningInputs.getById(params.id) });
+    })
+  );
+
+  router.post(
+    "/decompositions/run",
+    requireSession,
+    asyncHandler(async (request, response) => {
+      const body = runDecompositionRequestSchema.parse(request.body);
+      const decompositionRun = await services.decompositions.run(body, sessionUser(response));
+      json(response.status(201), runDecompositionResponseSchema, { decompositionRun });
+    })
+  );
+
+  router.get(
+    "/decompositions/:id",
+    requireSession,
+    asyncHandler(async (request, response) => {
+      const params = pathIdParamsSchema.parse(request.params);
+      json(response, getDecompositionResponseSchema, { decompositionRun: await services.decompositions.getById(params.id) });
     })
   );
 
