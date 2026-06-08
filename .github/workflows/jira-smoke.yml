@@ -46,6 +46,8 @@ jobs:
           JIRA_PROJECT_KEY: ${{ inputs.project_key || secrets.JIRA_PROJECT_KEY }}
           JIRA_SMOKE_JQL: ${{ inputs.jql }}
           MAX_RESULTS: ${{ inputs.max_results }}
+          PYTHONIOENCODING: utf-8
+          PYTHONUTF8: "1"
         run: |
           $ErrorActionPreference = "Stop"
 

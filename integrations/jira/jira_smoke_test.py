@@ -122,6 +122,10 @@ def print_kv(label: str, value: Any) -> None:
 
 
 def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+
     parser = argparse.ArgumentParser(description="Validate Jira connectivity and a sample JQL search.")
     parser.add_argument("--env-file", default="integrations/jira/.env", help="Optional .env file to load")
     parser.add_argument("--api-version", default=os.getenv("JIRA_API_VERSION") or "2", help="Jira REST API version")
