@@ -24,10 +24,7 @@ const envSchema = z.object({
   GITHUB_STATE_REPOSITORY: z.string().optional(),
   GITHUB_STATE_BRANCH: z.string().default("jira-live"),
   GITHUB_STATE_PATH: z.string().default("jira-live/state.json"),
-  GITHUB_STATE_URL: z
-    .string()
-    .url()
-    .default("https://raw.githubusercontent.com/atkaksoy501/ifts-hackathon/jira-live/jira-live/state.json"),
+  GITHUB_STATE_URL: z.string().url().optional(),
   GITHUB_STATE_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
   CATALOG_STORE: z.enum(["memory", "mongo"]).default("memory"),
   SYNC_DISABLED: booleanEnvSchema.default(false),
