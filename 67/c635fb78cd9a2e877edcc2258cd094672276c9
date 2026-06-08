@@ -1,0 +1,38 @@
+app/backend/src/contexts/task-planning/planning.service.unit.test.ts
+  s_84aa7e5afa8b17::t_6ba532927b119e 1-53
+app/backend/src/routes.ts
+  s_84aa7e5afa8b17::t_6d6adb9bcef20b 12-13,22,40-41,48-49,165-176,185-189,195-198,202
+  s_84aa7e5afa8b17::t_8c1e1736cd8e92 19-21,180,190,199
+app/backend/src/contexts/task-planning/decomposition.service.ts
+  s_84aa7e5afa8b17::t_1afe6c585a52dd 1-216
+app/backend/src/contexts/task-planning/planning.service.ts
+  s_84aa7e5afa8b17::t_1afe6c585a52dd 1-105
+app/shared/src/index.ts
+  s_84aa7e5afa8b17::t_47613b8a8c8295 318-476
+app/backend/src/contexts/task-planning/decomposition.service.unit.test.ts
+  s_84aa7e5afa8b17::t_6ba532927b119e 1-61
+app/backend/src/contexts/task-planning/repositories.ts
+  s_84aa7e5afa8b17::t_1afe6c585a52dd 1-37
+app/backend/src/app.ts
+  s_84aa7e5afa8b17::t_6d6adb9bcef20b 29-36,47-48,100-105,113-115
+app/backend/src/app.integration.test.ts
+  s_84aa7e5afa8b17::t_6ba532927b119e 239-286
+app/shared/tests/contracts.unit.test.ts
+  s_84aa7e5afa8b17::t_47613b8a8c8295 13-14,16-18,23-25,32-33,64-169,267-330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "67c635fb78cd9a2e877edcc2258cd094672276c9",
+  "prompts": {},
+  "sessions": {
+    "s_84aa7e5afa8b17": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ea753-ee1e-71f3-bb09-749a5d93a865",
+        "model": "gpt-5.5"
+      },
+      "human_author": "TCACAKMAK <abdulhalim.cakmak@turkcell.com.tr>"
+    }
+  }
+}
