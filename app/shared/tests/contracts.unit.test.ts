@@ -15,13 +15,19 @@ import {
   loginRequestSchema,
   patchBlockagePatternRequestSchema,
   patchUserRequestSchema,
+  reviewableSprintsResponseSchema,
   sizingRecommendRequestSchema,
   sizingRecommendResponseSchema,
   sprintHistoryQuerySchema,
   sprintHistoryResponseSchema,
+  sprintDemoReportResponseSchema,
+  sprintEvidenceResponseSchema,
+  varianceAnalyticsQuerySchema,
+  varianceAnalyticsResponseSchema,
   syncRunResponseSchema,
   syncStatusResponseSchema,
-  sizingRecommendationSchema
+  sizingRecommendationSchema,
+  userRoleSchema
 } from "../src/index.js";
 
 describe("contracts", () => {
@@ -66,6 +72,12 @@ describe("contracts", () => {
       }).success
     ).toBe(true);
     expect(patchBlockagePatternRequestSchema.safeParse({ active: false }).success).toBe(true);
+  });
+
+  it("supports module 3 manager role and analytics query invariants", () => {
+    expect(userRoleSchema.safeParse("manager").success).toBe(true);
+    expect(varianceAnalyticsQuerySchema.parse({ sprintId: "sprint-1", trendWindow: "6" })).toMatchObject({ trendWindow: 6 });
+    expect(varianceAnalyticsQuerySchema.safeParse({ sprintId: "sprint-1", trendWindow: "13" }).success).toBe(false);
   });
 
   it("normalizes query schemas for backlog and sprint history routes", () => {
@@ -135,6 +147,57 @@ describe("contracts", () => {
       createdAt: now,
       updatedAt: now
     };
+    const sourceRef = { sourceType: "jira-snapshot", externalId: "sprint-1", capturedAt: now };
+    const reviewSprint = {
+      ...sprint,
+      evidenceStatus: "ready",
+      reportCount: 1,
+      latestReportId: "report-1",
+      sourceRefs: [sourceRef],
+      warnings: []
+    };
+    const evidence = {
+      id: "evidence-1",
+      sprint: reviewSprint,
+      snapshots: [],
+      completedItems: [],
+      incompleteItems: [],
+      removedItems: [],
+      pullRequests: [],
+      commits: [],
+      closingRemarks: [],
+      unmatchedEvidence: [],
+      warnings: [],
+      generatedAt: now
+    };
+    const report = {
+      id: "report-1",
+      sprintId: "sprint-1",
+      projectKey: "ICTFT",
+      version: 1,
+      title: "Sprint 1 Sprint Demo Raporu",
+      language: "tr",
+      provider: { name: "heuristic", promptVersion: "heuristic-tr-v1", fallbackUsed: false, anonymized: false },
+      sections: [{ key: "executive-summary", title: "Yonetici Ozeti", items: ["Bir is tamamlandi."] }],
+      source: { evidenceSetId: "evidence-1", remarkIds: [], sourceRefs: [sourceRef] },
+      markdown: "# Sprint 1",
+      warnings: [],
+      createdBy: "u-1",
+      createdAt: now
+    };
+    const variance = {
+      id: "variance-1",
+      projectKey: "ICTFT",
+      sprintId: "sprint-1",
+      trendWindow: 6,
+      baselines: { startSnapshotId: "start", closeSnapshotId: "close" },
+      storyPoints: { planned: 5, actual: 5, delta: 0, deltaPercent: 0, direction: "on-track", usedFallback: false },
+      hours: { planned: 30, actual: 30, delta: 0, deltaPercent: 0, direction: "on-track", usedFallback: false },
+      velocityTrend: [],
+      bottlenecks: [],
+      warnings: [],
+      computedAt: now
+    };
 
     expect(healthResponseSchema.safeParse({ ok: true, service: "module1-advisor" }).success).toBe(true);
     expect(authUserResponseSchema.safeParse({ user: sessionUser }).success).toBe(true);
@@ -148,5 +211,9 @@ describe("contracts", () => {
     expect(blockageRecommendResponseSchema.safeParse(blockage).success).toBe(true);
     expect(blockagePatternsResponseSchema.safeParse({ patterns: [pattern] }).success).toBe(true);
     expect(blockagePatternResponseSchema.safeParse({ pattern }).success).toBe(true);
+    expect(reviewableSprintsResponseSchema.safeParse({ sprints: [reviewSprint], warnings: [] }).success).toBe(true);
+    expect(sprintEvidenceResponseSchema.safeParse({ evidence }).success).toBe(true);
+    expect(sprintDemoReportResponseSchema.safeParse({ report }).success).toBe(true);
+    expect(varianceAnalyticsResponseSchema.safeParse({ analytics: variance }).success).toBe(true);
   });
 });

@@ -50,7 +50,7 @@ export function setSessionCookie(response: Response, token: string, config: AppC
 }
 
 function isSessionClaims(value: jwt.JwtPayload): value is jwt.JwtPayload & SessionClaims {
-  return typeof value.sub === "string" && (value.role === "admin" || value.role === "user");
+  return typeof value.sub === "string" && (value.role === "admin" || value.role === "manager" || value.role === "user");
 }
 
 export function clearSessionCookie(response: Response, config: AppConfig) {

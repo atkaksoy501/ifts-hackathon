@@ -26,6 +26,7 @@ import { MongoCatalogRepositories } from "./contexts/ingestion/mongo.repositorie
 import { InMemoryCatalogRepositories, type CatalogRepositories } from "./contexts/ingestion/repositories.js";
 import { SyncScheduler } from "./contexts/ingestion/sync.scheduler.js";
 import { SizingEngine } from "./contexts/predictive-sizing/sizing.engine.js";
+import { SprintReviewService } from "./contexts/sprint-review/sprint-review.service.js";
 import { createApiRouter } from "./routes.js";
 import { loadConfig, type AppConfig } from "./shared/config.js";
 import { correlationIdMiddleware, errorHandler } from "./shared/http.js";
@@ -94,7 +95,8 @@ export async function createApp(config: AppConfig = loadConfig(), options: Creat
       identity,
       catalog,
       sizing: new SizingEngine({ hoursPerStoryPoint: config.HOURS_PER_STORY_POINT }),
-      blockage: new BlockageService(blockagePatternRepository, blockageRecommendationRepository)
+      blockage: new BlockageService(blockagePatternRepository, blockageRecommendationRepository),
+      sprintReview: new SprintReviewService(catalog, config.DEFAULT_PROJECT_KEY, config.HOURS_PER_STORY_POINT)
     })
   );
 

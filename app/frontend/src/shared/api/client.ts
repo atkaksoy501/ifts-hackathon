@@ -1,5 +1,7 @@
 import {
   blockageRecommendRequestSchema,
+  createSprintDemoReportRequestSchema,
+  createSprintRemarkRequestSchema,
   createBlockagePatternRequestSchema,
   createUserRequestSchema,
   loginRequestSchema,
@@ -14,6 +16,10 @@ import {
   type BlockagePatternsResponse,
   type BlockageRecommendationDto,
   type CreateBlockagePatternRequest,
+  type CreateSprintDemoReportRequest,
+  type CreateSprintDemoReportResponse,
+  type CreateSprintRemarkRequest,
+  type CreateSprintRemarkResponse,
   type CreateUserRequest,
   type ErrorEnvelope,
   type LoginRequest,
@@ -21,9 +27,15 @@ import {
   type PatchUserRequest,
   type SessionUserDto,
   type SizingRecommendationDto,
+  type SprintDemoMarkdownResponse,
+  type SprintDemoReportResponse,
+  type SprintEvidenceResponse,
   type SprintHistoryResponse,
   type SyncRunDto,
-  type SyncStatusDto
+  type SyncStatusDto,
+  type VarianceAnalyticsQuery,
+  type VarianceAnalyticsResponse,
+  type ReviewableSprintsResponse
 } from "@module1/contracts";
 
 export class ApiClient {
@@ -108,6 +120,40 @@ export class ApiClient {
       method: "PATCH",
       body: patchBlockagePatternRequestSchema.parse(input)
     });
+  }
+
+  sprintReviewSprints(query: { projectKey?: string; limit?: number } = {}): Promise<ReviewableSprintsResponse> {
+    return this.request(`/sprint-review/sprints?${toSearchParams(query)}`);
+  }
+
+  sprintEvidence(sprintId: string, query: { projectKey?: string } = {}): Promise<SprintEvidenceResponse> {
+    return this.request(`/sprint-review/sprints/${encodeURIComponent(sprintId)}/evidence?${toSearchParams(query)}`);
+  }
+
+  createSprintRemark(sprintId: string, input: CreateSprintRemarkRequest): Promise<CreateSprintRemarkResponse> {
+    return this.request(`/sprint-review/sprints/${encodeURIComponent(sprintId)}/remarks`, {
+      method: "POST",
+      body: createSprintRemarkRequestSchema.parse(input)
+    });
+  }
+
+  createSprintReport(input: CreateSprintDemoReportRequest): Promise<CreateSprintDemoReportResponse> {
+    return this.request("/sprint-review/reports", {
+      method: "POST",
+      body: createSprintDemoReportRequestSchema.parse(input)
+    });
+  }
+
+  sprintReport(id: string): Promise<SprintDemoReportResponse> {
+    return this.request(`/sprint-review/reports/${encodeURIComponent(id)}`);
+  }
+
+  sprintReportMarkdown(id: string): Promise<SprintDemoMarkdownResponse> {
+    return this.request(`/sprint-review/reports/${encodeURIComponent(id)}/markdown`);
+  }
+
+  variance(query: VarianceAnalyticsQuery): Promise<VarianceAnalyticsResponse> {
+    return this.request(`/analytics/variance?${toSearchParams(query)}`);
   }
 
   private async request<T>(

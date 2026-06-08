@@ -8,14 +8,14 @@ import type {
 } from "@module1/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Activity,
   AlertTriangle,
+  BarChart3,
+  FileText,
   Gauge,
   ListFilter,
   Lock,
   LogOut,
   RefreshCw,
-  Search,
   ShieldCheck,
   Users
 } from "lucide-react";
@@ -212,6 +212,10 @@ function DashboardBody({
                 <AlertTriangle className="mr-2 h-4 w-4" />
                 {tr.blockage}
               </TabsTrigger>
+              <TabsTrigger value="review">
+                <FileText className="mr-2 h-4 w-4" />
+                Sprint Review
+              </TabsTrigger>
               {canAdmin ? (
                 <TabsTrigger value="admin">
                   <Users className="mr-2 h-4 w-4" />
@@ -254,6 +258,10 @@ function DashboardBody({
                   blockage.mutate(selectedKey ? { issueKey: selectedKey, inputText: blockageText } : { inputText: blockageText })
                 }
               />
+            </TabsContent>
+
+            <TabsContent value="review">
+              <SprintReviewPanel canWrite={user.role === "manager" || user.role === "admin"} />
             </TabsContent>
 
             {canAdmin ? (
@@ -647,6 +655,173 @@ function BlockagePanel({
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+function SprintReviewPanel({ canWrite }: { canWrite: boolean }) {
+  const queryClient = useQueryClient();
+  const [selectedSprintId, setSelectedSprintId] = useState("");
+  const [remarkText, setRemarkText] = useState("");
+  const [reportId, setReportId] = useState("");
+
+  const sprints = useQuery({
+    queryKey: ["sprint-review-sprints", DEFAULT_PROJECT_KEY],
+    queryFn: () => apiClient.sprintReviewSprints({ projectKey: DEFAULT_PROJECT_KEY, limit: 10 })
+  });
+  const selectedSprint = sprints.data?.sprints.find((sprint) => sprint.id === selectedSprintId);
+
+  useEffect(() => {
+    if (!selectedSprintId && sprints.data?.sprints[0]) {
+      setSelectedSprintId(sprints.data.sprints[0].id);
+    }
+  }, [selectedSprintId, sprints.data]);
+
+  const evidence = useQuery({
+    queryKey: ["sprint-evidence", selectedSprintId],
+    queryFn: () => apiClient.sprintEvidence(selectedSprintId, { projectKey: DEFAULT_PROJECT_KEY }),
+    enabled: Boolean(selectedSprintId)
+  });
+  const variance = useQuery({
+    queryKey: ["variance", selectedSprintId],
+    queryFn: () => apiClient.variance({ projectKey: DEFAULT_PROJECT_KEY, sprintId: selectedSprintId, trendWindow: 6 }),
+    enabled: Boolean(selectedSprintId)
+  });
+  const createRemark = useMutation({
+    mutationFn: () => apiClient.createSprintRemark(selectedSprintId, { text: remarkText }),
+    onSuccess: async () => {
+      setRemarkText("");
+      await queryClient.invalidateQueries({ queryKey: ["sprint-evidence", selectedSprintId] });
+    }
+  });
+  const createReport = useMutation({
+    mutationFn: () => apiClient.createSprintReport({ sprintId: selectedSprintId, projectKey: DEFAULT_PROJECT_KEY }),
+    onSuccess: (result) => setReportId(result.report.id)
+  });
+  const markdown = useQuery({
+    queryKey: ["report-markdown", reportId],
+    queryFn: () => apiClient.sprintReportMarkdown(reportId),
+    enabled: Boolean(reportId)
+  });
+
+  const warnings = [
+    ...(sprints.data?.warnings ?? emptyWarnings),
+    ...(evidence.data?.evidence.warnings ?? emptyWarnings),
+    ...(variance.data?.analytics.warnings ?? emptyWarnings),
+    ...(createReport.data?.report.warnings ?? emptyWarnings)
+  ];
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
+      <Card>
+        <CardHeader>
+          <CardTitle>Sprint Review</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <label className="grid gap-1 text-sm">
+            Sprint
+            <select
+              className="h-10 rounded-md border border-border bg-white px-3 text-sm"
+              onChange={(event) => setSelectedSprintId(event.target.value)}
+              value={selectedSprintId}
+            >
+              {(sprints.data?.sprints ?? []).map((sprint) => (
+                <option key={sprint.id} value={sprint.id}>
+                  {sprint.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {selectedSprint ? (
+            <div className="rounded-md bg-muted p-3 text-sm">
+              <div className="font-medium">{selectedSprint.name}</div>
+              <div className="text-muted-foreground">Evidence: {selectedSprint.evidenceStatus}</div>
+            </div>
+          ) : null}
+          {canWrite ? (
+            <form className="space-y-2" onSubmit={(event) => submit(event, () => createRemark.mutate())}>
+              <textarea
+                className="min-h-24 w-full rounded-md border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                onChange={(event) => setRemarkText(event.target.value)}
+                placeholder="Demo notu veya kapanis yorumu"
+                value={remarkText}
+              />
+              <Button disabled={!selectedSprintId || !remarkText.trim() || createRemark.isPending} type="submit">
+                <FileText className="h-4 w-4" />
+                Remark ekle
+              </Button>
+            </form>
+          ) : null}
+          <Button disabled={!selectedSprintId || !canWrite || createReport.isPending} onClick={() => createReport.mutate()} variant="secondary">
+            <FileText className="h-4 w-4" />
+            Rapor uret
+          </Button>
+          {warnings.length ? <WarningsPanel warnings={warnings} /> : null}
+        </CardContent>
+      </Card>
+
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Evidence</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {evidence.isLoading ? <p className="text-sm text-muted-foreground">Evidence yukleniyor.</p> : null}
+            {evidence.error ? <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-800">{messageFromError(evidence.error)}</p> : null}
+            <div className="grid gap-3 md:grid-cols-3">
+              <Metric label="Tamamlanan" value={evidence.data?.evidence.completedItems.length ?? 0} />
+              <Metric label="Devreden" value={evidence.data?.evidence.incompleteItems.length ?? 0} />
+              <Metric label="Remark" value={evidence.data?.evidence.closingRemarks.length ?? 0} />
+            </div>
+            <ResultList
+              title="Tamamlanan isler"
+              items={(evidence.data?.evidence.completedItems ?? []).map((item) => `${item.key} - ${item.summary}`)}
+            />
+            <ResultList
+              title="Devreden isler"
+              items={(evidence.data?.evidence.incompleteItems ?? []).map((item) => `${item.key} - ${item.summary}`)}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <span className="inline-flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Variance
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <Metric label="Plan SP" value={variance.data?.analytics.storyPoints.planned ?? 0} />
+              <Metric label="Actual SP" value={variance.data?.analytics.storyPoints.actual ?? 0} />
+              <Metric label="Delta" value={variance.data?.analytics.storyPoints.delta ?? 0} />
+            </div>
+            <ResultList
+              title="Bottleneck"
+              items={(variance.data?.analytics.bottlenecks ?? []).map(
+                (item) => `${item.groupKey}: ${item.spilloverStoryPoints} SP / ${item.itemCount} is`
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        {createReport.data?.report ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>{createReport.data.report.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {createReport.data.report.sections.map((section) => (
+                <ResultList key={section.key} title={section.title} items={section.items} />
+              ))}
+              {markdown.data ? <pre className="max-h-80 overflow-auto rounded-md bg-muted p-3 text-xs">{markdown.data.markdown}</pre> : null}
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

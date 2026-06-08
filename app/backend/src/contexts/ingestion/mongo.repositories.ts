@@ -107,6 +107,11 @@ export class MongoCatalogRepositories implements CatalogRepositories {
     return await this.sprints.find({ projectKey, state: "closed" }).sort({ completeDate: -1 }).limit(limit).toArray();
   }
 
+  async listIssuesBySprint(projectKey: string, sprintId: string): Promise<JiraIssueDto[]> {
+    const issues = await this.issues.find({ projectKey, sprintIds: sprintId }).sort({ key: 1 }).toArray();
+    return issues.map(normalizeStoredIssue);
+  }
+
   async getIssue(issueKey: string): Promise<JiraIssueDto | undefined> {
     const issue = await this.issues.findOne({ key: issueKey });
     return issue ? normalizeStoredIssue(issue) : undefined;

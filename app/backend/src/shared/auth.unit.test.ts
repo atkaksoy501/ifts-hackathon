@@ -36,6 +36,12 @@ describe("auth helpers", () => {
     expect(readSession(token, baseConfig)).toMatchObject({ sub: "u-1", role: "admin" });
   });
 
+  it("accepts manager session claims", () => {
+    const token = signSession({ id: "u-2", username: "manager", role: "manager", active: true }, baseConfig);
+
+    expect(readSession(token, baseConfig)).toMatchObject({ sub: "u-2", role: "manager" });
+  });
+
   it("rejects tokens with malformed role claims", () => {
     const token = jwt.sign({ sub: "u-1", role: "owner" }, baseConfig.JWT_SECRET);
 
