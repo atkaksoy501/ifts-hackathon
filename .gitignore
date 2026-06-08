@@ -16,3 +16,5 @@ test-results/
 __pycache__/
 *.py[cod]
 .venv/
+
+**/.codesight/**
